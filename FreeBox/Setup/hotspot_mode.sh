@@ -64,11 +64,11 @@ if [ -f "$SCRIPT_DIR/activate_venv.sh" ]; then
     
     # Run the Python app with the virtual environment
     echo "Starting web interface with virtual environment..."
-    nohup python run.py > backend.log 2>&1 &
+    python3 run.py
 else
     echo "Warning: Virtual environment activation script not found. Trying system Python..."
     # Try with system Python as fallback
-    nohup sudo python run.py > backend.log 2>&1 &
+    sudo python3 run.py
 fi
 
 echo "Backend started successfully!"

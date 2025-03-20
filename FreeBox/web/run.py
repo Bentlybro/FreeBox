@@ -18,8 +18,7 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=80,  # Standard HTTP port
-        debug=False,  # Disable debug mode in production
-        allow_unsafe_werkzeug=True  # Required for production use
+        debug=False  # Disable debug mode in production
     ) 
     print("Starting FreeBox web interface...")
     print("The FreeBox web interface will be available at http://192.168.1.1")
