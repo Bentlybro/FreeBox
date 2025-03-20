@@ -7,6 +7,10 @@ FreeBox is an offline file sharing and communication platform inspired by Pirate
 - **WiFi Hotspot**: Creates a WiFi access point that users can connect to
 - **Web Interface**: User-friendly interface for interacting with the FreeBox
 - **File Sharing**: Upload and download files through the web interface
+- **File Previewing**: Preview images, text files, and code directly in the browser
+- **Upload Progress**: Real-time progress tracking for file uploads
+- **Custom Renaming**: Rename files before uploading them
+- **File Descriptions**: Add descriptions to individual files or groups of files
 - **Offline Access**: Works completely offline, no internet required
 
 ## Directory Structure

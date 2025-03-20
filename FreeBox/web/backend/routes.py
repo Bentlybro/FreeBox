@@ -44,6 +44,13 @@ def upload_file():
     # Get the storage directory
     storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage')
     
+    # Ensure storage directory exists
+    if not os.path.exists(storage_dir):
+        try:
+            os.makedirs(storage_dir)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to create storage directory: {str(e)}'}), 500
+    
     # Save the file to the storage directory
     file_path = os.path.join(storage_dir, unique_filename)
     
@@ -75,6 +82,12 @@ def upload_file():
             'file': file_record.to_dict()
         })
     except Exception as e:
+        # Remove the file if it was created but failed to add to database
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @uploads_bp.route('/api/download/<int:file_id>', methods=['GET'])

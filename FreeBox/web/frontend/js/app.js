@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const noFilesMessage = document.getElementById('no-files-message');
     const loadingFiles = document.getElementById('loading-files');
     const statusText = document.querySelector('.status-text');
-    const fileDescription = document.getElementById('file-description');
+    const globalFileDescription = document.getElementById('global-file-description');
     
     // DOM Elements - Chat
     const chatMessages = document.getElementById('chat-messages');
@@ -63,6 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const imageFileExtensions = [
         '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico'
     ];
+    
+    // Progress bar elements
+    const uploadProgressContainer = document.querySelector('.upload-progress-container');
+    const uploadProgressBar = document.querySelector('.upload-progress-bar');
+    const uploadProgressStatus = document.querySelector('.upload-progress-status');
+    const uploadProgressFile = document.querySelector('.upload-progress-file');
+    const uploadProgressInfo = document.querySelector('.upload-progress-info');
     
     // Initialize the page
     init();
@@ -725,6 +732,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         
+        // Create file item header
+        const fileItemHeader = document.createElement('div');
+        fileItemHeader.className = 'file-item-header';
+        
         // Create file info elements
         const fileName = document.createElement('div');
         fileName.className = 'file-name';
@@ -738,7 +749,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-file';
         removeBtn.textContent = '×';
+        removeBtn.title = 'Remove file';
         removeBtn.addEventListener('click', () => removeFile(file.name));
+        
+        // Add header elements
+        fileItemHeader.appendChild(fileName);
+        fileItemHeader.appendChild(fileSize);
+        fileItemHeader.appendChild(removeBtn);
+        
+        // Create file item content
+        const fileItemContent = document.createElement('div');
+        fileItemContent.className = 'file-item-content';
         
         // Create rename container
         const renameContainer = document.createElement('div');
@@ -758,12 +779,36 @@ document.addEventListener('DOMContentLoaded', () => {
         renameInput.dataset.extension = `.${extension}`;
         renameInput.dataset.originalName = file.name;
         
-        // Add all elements to the file item
+        // Add rename input to container
         renameContainer.appendChild(renameInput);
-        fileItem.appendChild(fileName);
-        fileItem.appendChild(fileSize);
-        fileItem.appendChild(removeBtn);
-        fileItem.appendChild(renameContainer);
+        
+        // Create description container
+        const descriptionContainer = document.createElement('div');
+        descriptionContainer.className = 'file-description-container';
+        
+        // Create description label
+        const descriptionLabel = document.createElement('label');
+        descriptionLabel.textContent = 'Description (optional):';
+        
+        // Create description textarea
+        const descriptionTextarea = document.createElement('textarea');
+        descriptionTextarea.className = 'file-description-input';
+        descriptionTextarea.placeholder = 'Add a description for this file...';
+        
+        // Add description elements to container
+        descriptionContainer.appendChild(descriptionLabel);
+        descriptionContainer.appendChild(descriptionTextarea);
+        
+        // Add content elements
+        fileItemContent.appendChild(renameContainer);
+        fileItemContent.appendChild(descriptionContainer);
+        
+        // Add all elements to the file item
+        fileItem.appendChild(fileItemHeader);
+        fileItem.appendChild(fileItemContent);
+        
+        // Set data attribute to identify file
+        fileItem.dataset.filename = file.name;
         
         // Add the file item to the list
         fileList.appendChild(fileItem);
@@ -792,66 +837,158 @@ document.addEventListener('DOMContentLoaded', () => {
     function uploadFiles() {
         if (filesToUpload.length === 0) return;
         
-        // Disable upload button
+        // Disable upload button and form inputs
         uploadBtn.disabled = true;
+        selectFileBtn.disabled = true;
         
-        // Upload each file
-        const uploadPromises = filesToUpload.map(file => {
+        // Show progress container
+        uploadProgressContainer.classList.remove('hidden');
+        uploadProgressBar.style.width = '0%';
+        uploadProgressStatus.textContent = '0%';
+        uploadProgressInfo.textContent = `0 of ${filesToUpload.length} files`;
+        
+        // Variables to track upload progress
+        let filesUploaded = 0;
+        let totalProgress = 0;
+        
+        // Process files one by one for better progress tracking
+        uploadNextFile(0);
+        
+        function uploadNextFile(index) {
+            if (index >= filesToUpload.length) {
+                // All files uploaded
+                finishUpload();
+                return;
+            }
+            
+            const file = filesToUpload[index];
             const formData = new FormData();
             
-            // Check if the file has been renamed
-            const fileItems = fileList.querySelectorAll('.file-item');
-            let originalName = file.name;
+            // Find the file item in the DOM
+            const fileItem = fileList.querySelector(`[data-filename="${file.name}"]`);
             let customName = null;
+            let fileDescription = '';
             
-            for (const item of fileItems) {
-                const fileNameElement = item.querySelector('.file-name');
-                if (fileNameElement && fileNameElement.textContent === file.name) {
-                    const renameInput = item.querySelector('.file-rename-input');
-                    if (renameInput && renameInput.value.trim() !== '') {
-                        const newBaseName = renameInput.value.trim();
-                        const extension = renameInput.dataset.extension;
-                        customName = newBaseName + extension;
-                        break;
-                    }
+            if (fileItem) {
+                // Get custom filename if provided
+                const renameInput = fileItem.querySelector('.file-rename-input');
+                if (renameInput && renameInput.value.trim() !== '') {
+                    const newBaseName = renameInput.value.trim();
+                    const extension = renameInput.dataset.extension;
+                    customName = newBaseName + extension;
+                }
+                
+                // Get individual description if provided
+                const descriptionInput = fileItem.querySelector('.file-description-input');
+                if (descriptionInput && descriptionInput.value.trim() !== '') {
+                    fileDescription = descriptionInput.value.trim();
+                } else if (globalFileDescription.value.trim() !== '') {
+                    // Use global description as fallback
+                    fileDescription = globalFileDescription.value.trim();
                 }
             }
             
-            // Append original file 
+            // Update progress display
+            uploadProgressFile.textContent = customName || file.name;
+            uploadProgressInfo.textContent = `${index + 1} of ${filesToUpload.length} files`;
+            
+            // Append file to formData
             formData.append('file', file);
             
-            // Add custom name if provided
+            // Add custom filename if provided
             if (customName) {
                 formData.append('custom_filename', customName);
             }
             
             // Add description if provided
-            if (fileDescription.value) {
-                formData.append('description', fileDescription.value);
+            if (fileDescription) {
+                formData.append('description', fileDescription);
             }
             
-            return fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
-                    throw new Error(data.error || 'Upload failed');
+            // Use XMLHttpRequest for progress monitoring
+            const xhr = new XMLHttpRequest();
+            
+            // Track upload progress for this file
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    // Calculate progress for this file
+                    const fileProgress = (e.loaded / e.total) * 100;
+                    
+                    // Calculate total progress across all files
+                    // Each file contributes its proportion to the total
+                    const fileContribution = fileProgress / filesToUpload.length;
+                    
+                    // Add completed files contribution
+                    const completedContribution = (filesUploaded / filesToUpload.length) * 100;
+                    
+                    // Update progress bar
+                    const totalPercentage = completedContribution + fileContribution;
+                    updateProgress(totalPercentage);
                 }
-                return data;
             });
-        });
+            
+            // Handle successful upload
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            // Increment counter and continue with next file
+                            filesUploaded++;
+                            
+                            // Continue with next file
+                            uploadNextFile(index + 1);
+                        } else {
+                            handleUploadError(`Failed to upload ${file.name}: ${response.error || 'Unknown error'}`);
+                        }
+                    } catch (error) {
+                        handleUploadError(`Failed to parse response for ${file.name}`);
+                    }
+                } else {
+                    handleUploadError(`Server returned status ${xhr.status} for ${file.name}`);
+                }
+            };
+            
+            // Handle upload error
+            xhr.onerror = function() {
+                handleUploadError(`Network error while uploading ${file.name}`);
+            };
+            
+            // Set up request and send
+            xhr.open('POST', '/api/upload', true);
+            xhr.send(formData);
+        }
         
-        // Process all uploads
-        Promise.all(uploadPromises)
-            .then(() => {
+        function updateProgress(percentage) {
+            const roundedPercentage = Math.min(100, Math.round(percentage));
+            uploadProgressBar.style.width = `${roundedPercentage}%`;
+            uploadProgressStatus.textContent = `${roundedPercentage}%`;
+        }
+        
+        function handleUploadError(errorMessage) {
+            console.error('Upload error:', errorMessage);
+            showErrorMessage(`Upload failed: ${errorMessage}`);
+            
+            // Reset UI
+            resetUploadUI();
+        }
+        
+        function finishUpload() {
+            // Update progress to 100%
+            updateProgress(100);
+            uploadProgressFile.textContent = 'Upload complete!';
+            
+            // Wait a moment to show the completed progress before resetting
+            setTimeout(() => {
+                // Reset UI
+                resetUploadUI();
+                
                 // Clear the file list
                 fileList.innerHTML = '';
                 filesToUpload = [];
                 
                 // Clear the description
-                fileDescription.value = '';
+                globalFileDescription.value = '';
                 
                 // Notify all clients via WebSocket
                 if (isConnected) {
@@ -860,14 +997,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Reload the file list
                 loadFiles();
-            })
-            .catch(error => {
-                console.error('Error uploading files:', error);
-                showErrorMessage('Failed to upload one or more files. Please try again.');
-            })
-            .finally(() => {
-                uploadBtn.disabled = false;
-            });
+            }, 1000);
+        }
+        
+        function resetUploadUI() {
+            // Hide progress
+            uploadProgressContainer.classList.add('hidden');
+            
+            // Enable buttons
+            uploadBtn.disabled = filesToUpload.length === 0;
+            selectFileBtn.disabled = false;
+        }
     }
     
     // Helper Functions
