@@ -43,8 +43,14 @@ BACKEND_DIR="../web"
 if [ -d "$BACKEND_DIR" ]; then
     echo "Starting Python backend..."
     cd "$BACKEND_DIR" || { echo "Failed to enter backend directory!"; exit 1; }
+    
+    # Source the virtual environment if it exists
+    if [ -f "../Setup/activate_venv.sh" ]; then
+        source "../Setup/activate_venv.sh"
+    fi
+    
     nohup python3 run.py > backend.log 2>&1 &  # Run in background & log output
     echo "Backend started successfully!"
 else
-    echo "Error: Backend directory not found at $BACKEND_DIR. Skipping Python app launch."l
+    echo "Error: Backend directory not found at $BACKEND_DIR. Skipping Python app launch."
 fi

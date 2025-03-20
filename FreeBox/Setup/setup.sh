@@ -3,15 +3,28 @@ echo "Setting up the FreeBox environment..."
 
 # Update system and install necessary packages
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3 python3-pip hostapd dnsmasq iptables
+sudo apt install -y python3 python3-pip python3-venv hostapd dnsmasq iptables
 
 # Ensure Python is installed
 echo "Checking Python installation..."
 python3 --version || { echo "Python installation failed!"; exit 1; }
 
-# Install required Python packages
+# Create a virtual environment
+echo "Creating Python virtual environment..."
+python3 -m venv ../venv
+source ../venv/bin/activate
+
+# Install required Python packages in the virtual environment
 echo "Installing Python dependencies..."
-pip3 install -r requirements.txt || { echo "Failed to install dependencies!"; exit 1; }
+pip install -r requirements.txt || { echo "Failed to install dependencies!"; exit 1; }
+deactivate
+
+# Create activation script for other scripts to use
+cat > ./activate_venv.sh <<EOT
+#!/bin/bash
+source "\$(dirname "\${BASH_SOURCE[0]}")/../venv/bin/activate"
+EOT
+chmod +x ./activate_venv.sh
 
 # Do NOT stop services yet, just configure them
 
