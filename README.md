@@ -72,6 +72,17 @@ cd FreeBox/Setup
 sudo ./dev_mode.sh
 ```
 
+## Screenshots
+
+![image](https://github.com/user-attachments/assets/af4e9777-bc9f-42ab-be58-7199bac524cb)
+![image](https://github.com/user-attachments/assets/93d21137-b103-4dd6-8fa9-2e2e463a1d8d)
+![image](https://github.com/user-attachments/assets/d7924de8-b5bc-471c-8485-41bfbaeef7c0)
+![image](https://github.com/user-attachments/assets/47046e70-6d82-4eaf-bd6f-b3afcf12e725)
+![image](https://github.com/user-attachments/assets/457b61d3-7f4c-4fe9-a410-73e0a34ad373)
+
+
+
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
