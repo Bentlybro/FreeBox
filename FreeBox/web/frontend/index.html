@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeBox</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+    <link rel="alternate icon" type="image/png" href="img/favicon.png">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <img src="img/logo.svg" alt="FreeBox Logo">
+            <h1>FreeBox</h1>
+        </div>
+        <nav>
+            <ul>
+                <li class="active"><a href="#files-section">Files</a></li>
+                <li><a href="#chat-section">Chat</a></li>
+                <li><a href="#stats-section">Stats</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        <section id="status">
+            <div class="status-container">
+                <div class="status-indicator online"></div>
+                <span class="status-text">FreeBox is online in hotspot mode</span>
+            </div>
+        </section>
+        
+        <section id="files-section">
+            <section id="upload">
+                <h2>Share Files</h2>
+                <div class="upload-container">
+                    <form id="upload-form">
+                        <div class="file-drop-area">
+                            <span class="drop-message">Drag and drop files here or</span>
+                            <button type="button" id="select-file-btn">Select Files</button>
+                            <input type="file" id="file-input" multiple hidden>
+                        </div>
+                        <div id="file-list"></div>
+                        <div class="form-group">
+                            <label for="file-description">Description (optional):</label>
+                            <textarea id="file-description" placeholder="Describe your files..."></textarea>
+                        </div>
+                        <button type="submit" id="upload-btn" disabled>Upload Files</button>
+                    </form>
+                </div>
+            </section>
+            
+            <section id="files">
+                <h2>Available Files</h2>
+                <div class="files-container">
+                    <div id="file-table-container">
+                        <table id="file-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Size</th>
+                                    <th>Date</th>
+                                    <th>Downloads</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="file-table-body">
+                                <!-- Files will be added here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="no-files-message" class="hidden">
+                        <p>No files have been shared yet.</p>
+                    </div>
+                    <div id="loading-files" class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading files...</p>
+                    </div>
+                </div>
+            </section>
+        </section>
+        
+        <section id="chat-section">
+            <h2>Chat</h2>
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h3 id="chat-room-name">Main Room</h3>
+                    <span id="chat-users-count">0 users online</span>
+                </div>
+                
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+                
+                <div class="chat-input-container">
+                    <div class="username-container">
+                        <label for="username-input">Your Name:</label>
+                        <input type="text" id="username-input" placeholder="Anonymous" maxlength="20">
+                    </div>
+                    <div class="message-input-container">
+                        <textarea id="message-input" placeholder="Type your message..." rows="2"></textarea>
+                        <button id="send-message-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="stats-section" style="display: none;">
+            <div class="stats-container">
+                <h2>📊 FreeBox Statistics</h2>
+                <p class="stats-description">Statistics update in real-time via WebSockets</p>
+                
+                <div class="stats-grid">
+                    <!-- Uptime Stats -->
+                    <div class="stat-card uptime">
+                        <h3>⏱️ Uptime</h3>
+                        <div id="uptime-value" class="stat-value">Loading...</div>
+                    </div>
+                    
+                    <!-- Visitors Stats -->
+                    <div class="stat-card visitors">
+                        <h3>👥 Visitors</h3>
+                        <div id="visitors-value" class="stat-value">Loading...</div>
+                    </div>
+                    
+                    <!-- Files Stats -->
+                    <div class="stat-card files">
+                        <h3>📁 Files</h3>
+                        <div id="files-value" class="stat-value">Loading...</div>
+                    </div>
+                    
+                    <!-- Storage Stats -->
+                    <div class="stat-card storage">
+                        <h3>💾 Storage Used</h3>
+                        <div id="storage-value" class="stat-value">Loading...</div>
+                    </div>
+                    
+                    <!-- Messages Stats -->
+                    <div class="stat-card messages">
+                        <h3>💬 Messages</h3>
+                        <div id="messages-value" class="stat-value">Loading...</div>
+                    </div>
+                    
+                    <!-- Most Downloaded File -->
+                    <div class="stat-card popular">
+                        <h3>⭐ Most Popular File</h3>
+                        <div id="popular-file-value" class="stat-value">Loading...</div>
+                    </div>
+                </div>
+                
+                <button id="refresh-stats-btn" class="refresh-btn">🔄 Manual Refresh</button>
+            </div>
+        </section>
+        
+        <section id="about">
+            <h2>About FreeBox</h2>
+            <div class="about-container">
+                <p>FreeBox is an offline file sharing and communication platform inspired by PirateBox. 
+                   It creates a WiFi hotspot that allows anyone in range to connect, share files, 
+                   and communicate without requiring internet access.</p>
+                
+                <h3>How to Use</h3>
+                <ol>
+                    <li>Connect to the "FreeBox" WiFi network</li>
+                    <li>Open your web browser and navigate to <strong>http://192.168.1.1</strong></li>
+                    <li>Upload and download files through this web interface</li>
+                    <li>Chat with others connected to the same FreeBox</li>
+                </ol>
+                
+                <h3>Privacy</h3>
+                <p>FreeBox operates completely offline. Nothing is tracked or logged.</p>
+            </div>
+        </section>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 FreeBox - Open Source Software</p>
+        <p><a href="https://github.com/yourusername/freebox" target="_blank">GitHub</a></p>
+    </footer>
+    
+    <script src="js/app.js"></script>
+</body>
+</html> 
