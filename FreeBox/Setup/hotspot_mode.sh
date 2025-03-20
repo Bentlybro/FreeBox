@@ -21,10 +21,10 @@ sudo ip link set wlan0 up
 
 # Ensure /etc/resolv.conf has a valid DNS server
 echo "Fixing DNS configuration..."
-sudo chattr -i /etc/resolv.conf
+sudo chattr -i /etc/resolv.conf 2>/dev/null || true
 echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
-sudo chattr +i /etc/resolv.conf
-echo "DNS configuration locked."
+sudo chattr +i /etc/resolv.conf 2>/dev/null || true
+echo "DNS configuration updated."
 
 # Restart hostapd and dnsmasq (hotspot & DHCP)
 echo "Starting hostapd and dnsmasq..."
@@ -37,20 +37,38 @@ sudo sysctl -w net.ipv4.ip_forward=1
 
 echo "Hotspot mode enabled."
 
-# Move to the backend directory and run the Python app
-BACKEND_DIR="../web"
+# Get the directory of this script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PARENT_DIR="$( cd "$SCRIPT_DIR/.." &> /dev/null && pwd )"
+BACKEND_DIR="$PARENT_DIR/web"
 
-if [ -d "$BACKEND_DIR" ]; then
-    echo "Starting Python backend..."
-    cd "$BACKEND_DIR" || { echo "Failed to enter backend directory!"; exit 1; }
+# Check if the web directory exists
+if [ ! -d "$BACKEND_DIR" ]; then
+    echo "Error: Web directory not found at $BACKEND_DIR. Skipping Python app launch."
+    exit 1
+fi
+
+echo "Starting Python backend..."
+cd "$BACKEND_DIR" || { echo "Failed to enter web directory!"; exit 1; }
+
+# Activate the virtual environment
+if [ -f "$SCRIPT_DIR/activate_venv.sh" ]; then
+    echo "Activating virtual environment..."
+    source "$SCRIPT_DIR/activate_venv.sh"
     
-    # Source the virtual environment if it exists
-    if [ -f "../Setup/activate_venv.sh" ]; then
-        source "../Setup/activate_venv.sh"
+    # Check if Flask is installed in the virtual environment
+    if ! python3 -c "import flask" &>/dev/null; then
+        echo "Flask not found in virtual environment. Installing requirements..."
+        pip install -r "$SCRIPT_DIR/requirements.txt"
     fi
     
-    nohup python3 run.py > backend.log 2>&1 &  # Run in background & log output
-    echo "Backend started successfully!"
+    # Run the Python app with the virtual environment
+    echo "Starting web interface with virtual environment..."
+    nohup python run.py > backend.log 2>&1 &
 else
-    echo "Error: Backend directory not found at $BACKEND_DIR. Skipping Python app launch."
+    echo "Warning: Virtual environment activation script not found. Trying system Python..."
+    # Try with system Python as fallback
+    nohup sudo python run.py > backend.log 2>&1 &
 fi
+
+echo "Backend started successfully!"
