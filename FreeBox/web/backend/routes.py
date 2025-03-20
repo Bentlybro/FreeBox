@@ -28,8 +28,16 @@ def upload_file():
     # Get optional description
     description = request.form.get('description', '')
     
+    # Get optional custom filename
+    custom_filename = request.form.get('custom_filename', '')
+    
     # Generate a unique filename to prevent overwriting
     original_filename = secure_filename(file.filename)
+    
+    # If a custom filename was provided, use it as the original filename but secure it
+    if custom_filename:
+        original_filename = secure_filename(custom_filename)
+    
     filename_parts = os.path.splitext(original_filename)
     unique_filename = f"{filename_parts[0]}_{uuid.uuid4().hex[:8]}{filename_parts[1]}"
     
@@ -83,23 +91,38 @@ def download_file_by_id(file_id):
     if not os.path.exists(file_path):
         abort(404)
     
-    # Increment download count
-    increment_download_count(file_id)
+    # Check if this is a preview request
+    is_preview = request.args.get('preview', 'false').lower() == 'true'
     
-    # Emit event to notify clients about the download
-    file_data = file_record.to_dict()
-    socketio.emit('file_downloaded', {'file': file_data})
-    
-    # Update stats for all clients
-    socketio.emit('stats_updated', get_all_stats())
+    if not is_preview:
+        # Only increment download count for actual downloads, not previews
+        increment_download_count(file_id)
+        
+        # Emit event to notify clients about the download
+        file_data = file_record.to_dict()
+        socketio.emit('file_downloaded', {'file': file_data})
+        
+        # Update stats for all clients
+        socketio.emit('stats_updated', get_all_stats())
     
     # Determine content type
     content_type = file_record.mime_type or mimetypes.guess_type(file_record.original_filename)[0] or 'application/octet-stream'
     
+    # For previews of large text files, we might want to read only the first part
+    # This is especially important for very large text files
+    if is_preview and content_type.startswith('text/') and os.path.getsize(file_path) > 1024 * 1024:  # If larger than 1MB
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read(1024 * 1024)  # Read first 1MB
+            
+            if len(content) == 1024 * 1024:
+                content += "\n\n... (file truncated for preview) ..."
+        
+        return content, 200, {'Content-Type': content_type}
+    
     return send_file(
         file_path,
         mimetype=content_type,
-        as_attachment=True,
+        as_attachment=not is_preview,  # Don't force download in preview mode
         download_name=file_record.original_filename
     )
 

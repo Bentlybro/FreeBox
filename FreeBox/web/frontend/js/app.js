@@ -38,6 +38,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // Track number of online users
     let onlineUsers = 1; // Start with 1 (yourself)
     
+    // File Viewer Modal Functionality
+    const fileViewerModal = document.getElementById('file-viewer-modal');
+    const modalFileName = document.getElementById('modal-file-name');
+    const modalFileDescription = document.getElementById('modal-file-description');
+    const modalFileDetails = document.getElementById('modal-file-details');
+    const modalDownloadBtn = document.getElementById('modal-download-btn');
+    const closeModal = document.querySelector('.close-modal');
+    const imageViewer = document.getElementById('image-viewer');
+    const textViewer = document.getElementById('text-viewer');
+    const unsupportedViewer = document.getElementById('unsupported-viewer');
+    const viewerImage = document.getElementById('viewer-image');
+    const viewerText = document.getElementById('viewer-text');
+    
+    // Array of text file extensions
+    const textFileExtensions = [
+        '.txt', '.md', '.js', '.html', '.css', '.json', '.xml', '.csv', 
+        '.py', '.c', '.cpp', '.h', '.java', '.php', '.rb', '.pl', '.sh',
+        '.log', '.ini', '.cfg', '.conf', '.yml', '.yaml', '.toml', '.jsx',
+        '.ts', '.tsx', '.vue', '.sql', '.gitignore', '.env', '.bat'
+    ];
+    
+    // Array of image file extensions
+    const imageFileExtensions = [
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico'
+    ];
+    
     // Initialize the page
     init();
     
@@ -340,8 +366,26 @@ document.addEventListener('DOMContentLoaded', () => {
         files.forEach(file => {
             const row = document.createElement('tr');
             
+            // Name cell with description as tooltip
             const nameCell = document.createElement('td');
-            nameCell.textContent = file.filename;
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = file.filename;
+            
+            // Add description as tooltip if available
+            if (file.description) {
+                nameSpan.title = file.description;
+                nameSpan.className = 'file-with-description';
+            }
+            
+            nameCell.appendChild(nameSpan);
+            
+            // Add description as a small text if available
+            if (file.description) {
+                const descriptionDiv = document.createElement('div');
+                descriptionDiv.className = 'file-description';
+                descriptionDiv.textContent = file.description;
+                nameCell.appendChild(descriptionDiv);
+            }
             
             const sizeCell = document.createElement('td');
             sizeCell.textContent = formatFileSize(file.size);
@@ -353,6 +397,15 @@ document.addEventListener('DOMContentLoaded', () => {
             downloadsCell.textContent = file.download_count;
             
             const actionsCell = document.createElement('td');
+            
+            // View button for previewing
+            const viewBtn = document.createElement('button');
+            viewBtn.textContent = 'View';
+            viewBtn.className = 'file-action-btn view';
+            viewBtn.setAttribute('data-file-id', file.id);
+            viewBtn.addEventListener('click', () => {
+                openFileViewer(file);
+            });
             
             const downloadBtn = document.createElement('button');
             downloadBtn.textContent = 'Download';
@@ -371,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
+            actionsCell.appendChild(viewBtn);
             actionsCell.appendChild(downloadBtn);
             actionsCell.appendChild(deleteBtn);
             
@@ -665,31 +719,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return filesToUpload.some(file => file.name === filename);
     }
     
-    // Add file to the UI list
+    // Add a file to the upload list
     function addFileToList(file) {
+        // Create a file item element
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         
-        const fileName = document.createElement('span');
+        // Create file info elements
+        const fileName = document.createElement('div');
         fileName.className = 'file-name';
         fileName.textContent = file.name;
         
-        const fileSize = document.createElement('span');
+        const fileSize = document.createElement('div');
         fileSize.className = 'file-size';
         fileSize.textContent = formatFileSize(file.size);
         
+        // Create remove button
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-file';
-        removeBtn.innerHTML = '&times;';
-        removeBtn.addEventListener('click', () => {
-            removeFile(file.name);
-        });
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => removeFile(file.name));
         
+        // Create rename container
+        const renameContainer = document.createElement('div');
+        renameContainer.className = 'file-rename-container';
+        
+        // Create rename input
+        const renameInput = document.createElement('input');
+        renameInput.type = 'text';
+        renameInput.className = 'file-rename-input';
+        renameInput.placeholder = 'Rename file (optional)';
+        
+        // Set initial value to filename without extension
+        const nameParts = file.name.split('.');
+        const extension = nameParts.pop();
+        const baseName = nameParts.join('.');
+        renameInput.value = baseName;
+        renameInput.dataset.extension = `.${extension}`;
+        renameInput.dataset.originalName = file.name;
+        
+        // Add all elements to the file item
+        renameContainer.appendChild(renameInput);
         fileItem.appendChild(fileName);
         fileItem.appendChild(fileSize);
         fileItem.appendChild(removeBtn);
+        fileItem.appendChild(renameContainer);
         
+        // Add the file item to the list
         fileList.appendChild(fileItem);
+        
+        // Enable the upload button
+        uploadBtn.disabled = false;
     }
     
     // Remove file from the list
@@ -718,7 +798,32 @@ document.addEventListener('DOMContentLoaded', () => {
         // Upload each file
         const uploadPromises = filesToUpload.map(file => {
             const formData = new FormData();
+            
+            // Check if the file has been renamed
+            const fileItems = fileList.querySelectorAll('.file-item');
+            let originalName = file.name;
+            let customName = null;
+            
+            for (const item of fileItems) {
+                const fileNameElement = item.querySelector('.file-name');
+                if (fileNameElement && fileNameElement.textContent === file.name) {
+                    const renameInput = item.querySelector('.file-rename-input');
+                    if (renameInput && renameInput.value.trim() !== '') {
+                        const newBaseName = renameInput.value.trim();
+                        const extension = renameInput.dataset.extension;
+                        customName = newBaseName + extension;
+                        break;
+                    }
+                }
+            }
+            
+            // Append original file 
             formData.append('file', file);
+            
+            // Add custom name if provided
+            if (customName) {
+                formData.append('custom_filename', customName);
+            }
             
             // Add description if provided
             if (fileDescription.value) {
@@ -859,4 +964,93 @@ document.addEventListener('DOMContentLoaded', () => {
         
         return `${randomAdjective}${randomNoun}${randomNumber}`;
     }
+    
+    // Function to open the file viewer modal
+    function openFileViewer(file) {
+        // Set the file name, description and details
+        modalFileName.textContent = file.filename;
+        
+        // Set description or default message
+        if (file.description) {
+            modalFileDescription.textContent = file.description;
+        } else {
+            modalFileDescription.textContent = 'No description available';
+        }
+        
+        // Set file details
+        modalFileDetails.textContent = `Size: ${formatFileSize(file.size)} | Type: ${file.mime_type || 'Unknown'} | Downloads: ${file.download_count}`;
+        
+        // Set download link
+        modalDownloadBtn.href = `/api/download/${file.id}`;
+        
+        // Hide all viewer containers first
+        imageViewer.style.display = 'none';
+        textViewer.style.display = 'none';
+        unsupportedViewer.style.display = 'none';
+        
+        // Determine file type and show appropriate viewer
+        const fileExtension = getFileExtension(file.filename).toLowerCase();
+        
+        if (imageFileExtensions.includes(fileExtension)) {
+            // Show image viewer
+            imageViewer.style.display = 'flex';
+            
+            // Set image source
+            viewerImage.src = `/api/download/${file.id}?preview=true`;
+            viewerImage.alt = file.filename;
+        }
+        else if (textFileExtensions.includes(fileExtension)) {
+            // Show text viewer
+            textViewer.style.display = 'flex';
+            
+            // Load the text content
+            fetch(`/api/download/${file.id}?preview=true`)
+                .then(response => response.text())
+                .then(text => {
+                    viewerText.textContent = text;
+                    
+                    // Apply syntax highlighting if available
+                    if (typeof hljs !== 'undefined') {
+                        hljs.highlightElement(viewerText);
+                    }
+                })
+                .catch(error => {
+                    viewerText.textContent = `Error loading file: ${error.message}`;
+                });
+        }
+        else {
+            // Show unsupported file type message
+            unsupportedViewer.style.display = 'flex';
+        }
+        
+        // Show the modal
+        fileViewerModal.style.display = 'block';
+    }
+    
+    // Get file extension (including the dot)
+    function getFileExtension(filename) {
+        const lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex === -1) return '';
+        return filename.substring(lastDotIndex);
+    }
+    
+    // Close the modal when clicking the close button
+    closeModal.addEventListener('click', () => {
+        fileViewerModal.style.display = 'none';
+        
+        // Clear content when closed
+        viewerImage.src = '';
+        viewerText.textContent = '';
+    });
+    
+    // Close the modal when clicking outside of it
+    window.addEventListener('click', (event) => {
+        if (event.target === fileViewerModal) {
+            fileViewerModal.style.display = 'none';
+            
+            // Clear content when closed
+            viewerImage.src = '';
+            viewerText.textContent = '';
+        }
+    });
 }); 
