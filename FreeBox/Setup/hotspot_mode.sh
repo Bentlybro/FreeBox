@@ -46,5 +46,5 @@ if [ -d "$BACKEND_DIR" ]; then
     nohup python3 run.py > backend.log 2>&1 &  # Run in background & log output
     echo "Backend started successfully!"
 else
-    echo "Error: Backend directory not found at $BACKEND_DIR. Skipping Python app launch."
+    echo "Error: Backend directory not found at $BACKEND_DIR. Skipping Python app launch."l
 fi

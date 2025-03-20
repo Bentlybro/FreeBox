@@ -10,8 +10,8 @@ echo "Checking Python installation..."
 python3 --version || { echo "Python installation failed!"; exit 1; }
 
 # Install required Python packages
-if [ -d "web" ]; then
-    cd web || { echo "Failed to enter 'web' directory"; exit 1; }
+if [ -d "../web" ]; then
+    cd ../web || { echo "Failed to enter 'web' directory"; exit 1; }
     echo "Installing Python dependencies..."
     pip3 install -r requirements.txt || { echo "Failed to install dependencies!"; exit 1; }
     cd ..
@@ -55,4 +55,4 @@ sudo sed -i 's|#DAEMON_CONF=""|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/de
 sudo sed -i 's|#net.ipv4.ip_forward=1|net.ipv4.ip_forward=1|' /etc/sysctl.conf
 echo "Note: IP forwarding is configured but not yet applied. Run 'sudo sysctl -p' when you are ready."
 
-echo "Setup complete! You can now reboot or manually start the hotspot using ./hotspot_mode.sh."
+echo "Setup complete! You can now reboot or manually start the hotspot using sudo ./hotspot_mode.sh"
