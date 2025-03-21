@@ -51,9 +51,6 @@ domain-needed
 no-resolv
 # Do not forward queries
 no-poll
-# Don't forward non-routing addresses
-#bogus-priv
-# Set the DNS server to be the router
 dhcp-option=option:dns-server,192.168.1.1
 EOT'
 
