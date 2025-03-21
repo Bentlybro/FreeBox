@@ -178,11 +178,14 @@
                 <!-- System Stats -->
                 <h3 class="stats-section-title">System Stats</h3>
                 <div class="stats-grid">
-                    <!-- Storage Stats -->
-                    <div class="stat-card storage">
-                        <h3>💾 Storage</h3>
-                        <div id="storage-value" class="stat-value">Loading...</div>
-                        <div class="stat-detail">Calculating storage...</div>
+                    <!-- CPU Temperature Stats -->
+                    <div class="stat-card cpu-temp">
+                        <h3>🌡️ CPU Temperature</h3>
+                        <div id="cpu-temp-value" class="stat-value">Loading...</div>
+                        <div class="stat-detail">System processor temperature</div>
+                        <div class="progress-container">
+                            <div class="progress-bar low" style="width: 0%"></div>
+                        </div>
                     </div>
 
                     <!-- CPU Usage Stats -->
@@ -194,7 +197,7 @@
                             <div class="progress-bar low" style="width: 0%"></div>
                         </div>
                     </div>
-                    
+                  
                     <!-- RAM Usage Stats -->
                     <div class="stat-card ram">
                         <h3>🧠 RAM Usage</h3>
@@ -203,6 +206,13 @@
                         <div class="progress-container">
                             <div class="progress-bar low" style="width: 0%"></div>
                         </div>
+                    </div>
+
+                    <!-- Storage Stats -->
+                    <div class="stat-card storage">
+                        <h3>💾 Storage</h3>
+                        <div id="storage-value" class="stat-value">Loading...</div>
+                        <div class="stat-detail">Calculating storage...</div>
                     </div>
                 </div>
                 

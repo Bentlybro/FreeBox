@@ -25,6 +25,36 @@ connected_users = {
     'main': {}  # room_id -> {sid: username}
 }
 
+def get_cpu_temperature():
+    """
+    Get CPU temperature in Celsius
+    Returns None if temperature information is not available
+    """
+    try:
+        # Try using psutil's sensors_temperatures()
+        temps = psutil.sensors_temperatures()
+        if not temps:
+            return None
+        
+        # Different systems report CPU temp under different keys
+        # Common keys: 'coretemp', 'k10temp', 'cpu_thermal'
+        for chip_name, sensors in temps.items():
+            if chip_name.lower() in ['coretemp', 'k10temp', 'cpu_thermal', 'cpu-thermal', 'cpu thermal']:
+                # Take the first core or the package temperature
+                if sensors:
+                    return sensors[0].current
+        
+        # If we reach here, we didn't find a recognizable temperature sensor
+        # Try the first available sensor as a fallback
+        for chip_name, sensors in temps.items():
+            if sensors:
+                return sensors[0].current
+                
+        return None
+    except Exception as e:
+        print(f"Error getting CPU temperature: {e}")
+        return None
+
 def create_app():
     """Create and configure the Flask application"""
     # Create Flask app
@@ -91,6 +121,9 @@ def create_app():
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
         
+        # Get CPU temperature
+        cpu_temp = get_cpu_temperature()
+        
         # Calculate used and total disk space where the storage directory is located
         storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage')
         disk_usage = shutil.disk_usage(storage_dir)
@@ -102,6 +135,7 @@ def create_app():
             'timestamp': datetime.datetime.now().timestamp(),
             'system': {
                 'cpu_percent': cpu_percent,
+                'cpu_temperature': cpu_temp,
                 'memory_percent': memory.percent,
                 'memory_used': memory.used,
                 'memory_total': memory.total,
@@ -120,12 +154,16 @@ def create_app():
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
         
+        # Get CPU temperature
+        cpu_temp = get_cpu_temperature()
+        
         # Calculate used and total disk space where the storage directory is located
         storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage')
         disk_usage = shutil.disk_usage(storage_dir)
         
         stats_data['system'] = {
             'cpu_percent': cpu_percent,
+            'cpu_temperature': cpu_temp,
             'memory_percent': memory.percent,
             'memory_used': memory.used,
             'memory_total': memory.total,

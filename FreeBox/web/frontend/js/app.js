@@ -456,6 +456,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
+        // CPU temperature
+        const cpuTempElement = document.getElementById('cpu-temp-value');
+        if (cpuTempElement && stats.system && stats.system.cpu_temperature !== null) {
+            // Format temperature in Celsius
+            const temperature = stats.system.cpu_temperature;
+            cpuTempElement.textContent = `${temperature.toFixed(1)}°C`;
+            
+            // Find progress container
+            const progressContainer = cpuTempElement.nextElementSibling.nextElementSibling;
+            if (progressContainer && progressContainer.classList.contains('progress-container')) {
+                // Update progress bar - use percentage based on a typical temperature range (20-90°C)
+                const tempPercent = Math.min(100, Math.max(0, ((temperature - 20) / 70) * 100));
+                const progressBar = progressContainer.querySelector('.progress-bar');
+                
+                if (progressBar) {
+                    progressBar.style.width = `${tempPercent}%`;
+                    
+                    // Change color based on temperature
+                    if (temperature > 75) {
+                        progressBar.className = 'progress-bar high';
+                    } else if (temperature > 60) {
+                        progressBar.className = 'progress-bar medium';
+                    } else {
+                        progressBar.className = 'progress-bar low';
+                    }
+                }
+            }
+        } else if (cpuTempElement) {
+            // Handle case where temperature data is not available
+            cpuTempElement.textContent = 'N/A';
+            const detailElement = cpuTempElement.nextElementSibling;
+            if (detailElement && detailElement.classList.contains('stat-detail')) {
+                detailElement.textContent = 'Temperature data not available';
+            }
+        }
+        
         // RAM usage
         const ramElement = document.getElementById('ram-usage-value');
         if (ramElement && stats.system) {
