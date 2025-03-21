@@ -26,6 +26,11 @@ echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
 sudo chattr +i /etc/resolv.conf 2>/dev/null || true
 echo "DNS configuration updated."
 
+# Configure captive portal
+echo "Setting up captive portal..."
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+sudo "$SCRIPT_DIR/captive_portal_config.sh"
+
 # Restart hostapd and dnsmasq (hotspot & DHCP)
 echo "Starting hostapd and dnsmasq..."
 sudo systemctl restart hostapd
@@ -35,7 +40,7 @@ sudo systemctl restart dnsmasq
 echo "Enabling IP forwarding..."
 sudo sysctl -w net.ipv4.ip_forward=1
 
-echo "Hotspot mode enabled."
+echo "Hotspot mode enabled with captive portal."
 
 # Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
