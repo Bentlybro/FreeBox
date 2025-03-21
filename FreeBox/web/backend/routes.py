@@ -121,6 +121,9 @@ def download_file_by_id(file_id):
     # Determine content type
     content_type = file_record.mime_type or mimetypes.guess_type(file_record.original_filename)[0] or 'application/octet-stream'
     
+    # For video files, ensure proper streaming capabilities
+    is_video = content_type.startswith('video/')
+    
     # For previews of large text files, we might want to read only the first part
     # This is especially important for very large text files
     if is_preview and content_type.startswith('text/') and os.path.getsize(file_path) > 1024 * 1024:  # If larger than 1MB
@@ -132,6 +135,20 @@ def download_file_by_id(file_id):
         
         return content, 200, {'Content-Type': content_type}
     
+    # For video files in preview mode, we want to enable partial content support for streaming
+    if is_preview and is_video:
+        response = send_file(
+            file_path,
+            mimetype=content_type,
+            as_attachment=False,  # Never force download for video preview
+            download_name=file_record.original_filename,
+            conditional=True  # Enable partial content support
+        )
+        # Add headers for proper video streaming
+        response.headers.add('Accept-Ranges', 'bytes')
+        return response
+    
+    # Default handling for other file types
     return send_file(
         file_path,
         mimetype=content_type,

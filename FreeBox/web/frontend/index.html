@@ -213,6 +213,30 @@
                     <img id="viewer-image" src="" alt="Preview not available">
                 </div>
                 
+                <!-- Video viewer container -->
+                <div id="video-viewer" class="viewer-container">
+                    <div class="video-player-container">
+                        <video id="viewer-video" controls controlsList="nodownload">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="video-player-controls">
+                            <div class="video-player-info">
+                                <span id="video-current-time">0:00</span> / <span id="video-duration">0:00</span>
+                            </div>
+                            <div class="video-quality-selector">
+                                <select id="video-playback-speed">
+                                    <option value="0.5">0.5x</option>
+                                    <option value="0.75">0.75x</option>
+                                    <option value="1" selected>1x (Normal)</option>
+                                    <option value="1.25">1.25x</option>
+                                    <option value="1.5">1.5x</option>
+                                    <option value="2">2x</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Text/code viewer container -->
                 <div id="text-viewer" class="viewer-container">
                     <pre id="viewer-text"></pre>

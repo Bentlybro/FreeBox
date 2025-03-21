@@ -46,10 +46,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalDownloadBtn = document.getElementById('modal-download-btn');
     const closeModal = document.querySelector('.close-modal');
     const imageViewer = document.getElementById('image-viewer');
+    const videoViewer = document.getElementById('video-viewer');
     const textViewer = document.getElementById('text-viewer');
     const unsupportedViewer = document.getElementById('unsupported-viewer');
     const viewerImage = document.getElementById('viewer-image');
+    const viewerVideo = document.getElementById('viewer-video');
     const viewerText = document.getElementById('viewer-text');
+    
+    // DOM elements for video player
+    const videoCurrentTime = document.getElementById('video-current-time');
+    const videoDuration = document.getElementById('video-duration');
+    const videoPlaybackSpeed = document.getElementById('video-playback-speed');
     
     // Array of text file extensions
     const textFileExtensions = [
@@ -62,6 +69,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Array of image file extensions
     const imageFileExtensions = [
         '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico'
+    ];
+    
+    // Array of video file extensions
+    const videoFileExtensions = [
+        '.mp4', '.webm', '.ogg', '.mov', '.avi', '.wmv', '.mkv', '.flv', '.m4v', '.3gp'
     ];
     
     // Progress bar elements
@@ -378,12 +390,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const nameSpan = document.createElement('span');
             nameSpan.textContent = file.filename;
             
+            // Add file type icon based on extension
+            const fileExtension = getFileExtension(file.filename).toLowerCase();
+            
+            // Create file icon element
+            const fileIcon = document.createElement('span');
+            fileIcon.className = 'file-icon';
+            
+            // Determine icon based on file type
+            if (imageFileExtensions.includes(fileExtension)) {
+                fileIcon.textContent = '🖼️ ';
+                fileIcon.title = 'Image file';
+            } else if (videoFileExtensions.includes(fileExtension)) {
+                fileIcon.textContent = '🎬 ';
+                fileIcon.title = 'Video file';
+            } else if (textFileExtensions.includes(fileExtension)) {
+                fileIcon.textContent = '📄 ';
+                fileIcon.title = 'Text file';
+            } else {
+                fileIcon.textContent = '📁 ';
+                fileIcon.title = 'File';
+            }
+            
             // Add description as tooltip if available
             if (file.description) {
                 nameSpan.title = file.description;
                 nameSpan.className = 'file-with-description';
             }
             
+            // Add icon before filename
+            nameCell.appendChild(fileIcon);
             nameCell.appendChild(nameSpan);
             
             // Add description as a small text if available
@@ -1105,6 +1141,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${randomAdjective}${randomNoun}${randomNumber}`;
     }
     
+    // Function to format time in MM:SS format
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        seconds = Math.floor(seconds % 60);
+        return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+    
+    // Add video player event listeners
+    if (viewerVideo) {
+        // Update video time display
+        viewerVideo.addEventListener('timeupdate', () => {
+            videoCurrentTime.textContent = formatTime(viewerVideo.currentTime);
+        });
+        
+        // Set video duration when metadata is loaded
+        viewerVideo.addEventListener('loadedmetadata', () => {
+            videoDuration.textContent = formatTime(viewerVideo.duration);
+        });
+        
+        // Handle playback speed changes
+        videoPlaybackSpeed.addEventListener('change', () => {
+            viewerVideo.playbackRate = parseFloat(videoPlaybackSpeed.value);
+        });
+    }
+    
     // Function to open the file viewer modal
     function openFileViewer(file) {
         // Set the file name, description and details
@@ -1125,8 +1186,24 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Hide all viewer containers first
         imageViewer.style.display = 'none';
+        videoViewer.style.display = 'none';
         textViewer.style.display = 'none';
         unsupportedViewer.style.display = 'none';
+        
+        // Reset video player
+        if (viewerVideo) {
+            viewerVideo.pause();
+            viewerVideo.currentTime = 0;
+            viewerVideo.playbackRate = 1.0;
+            videoPlaybackSpeed.value = "1";
+            videoCurrentTime.textContent = "0:00";
+            videoDuration.textContent = "0:00";
+        }
+        
+        // Clear previous content
+        viewerImage.src = '';
+        viewerVideo.src = '';
+        viewerText.textContent = '';
         
         // Determine file type and show appropriate viewer
         const fileExtension = getFileExtension(file.filename).toLowerCase();
@@ -1138,6 +1215,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Set image source
             viewerImage.src = `/api/download/${file.id}?preview=true`;
             viewerImage.alt = file.filename;
+        }
+        else if (videoFileExtensions.includes(fileExtension)) {
+            // Show video viewer
+            videoViewer.style.display = 'flex';
+            
+            // Set video source
+            viewerVideo.src = `/api/download/${file.id}?preview=true`;
+            
+            // Set poster image if available (thumbnail)
+            viewerVideo.poster = '/img/video-poster.png';
+            
+            // Add metadata
+            viewerVideo.title = file.filename;
+            
+            // Load the video
+            viewerVideo.load();
         }
         else if (textFileExtensions.includes(fileExtension)) {
             // Show text viewer
@@ -1176,20 +1269,32 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Close the modal when clicking the close button
     closeModal.addEventListener('click', () => {
+        // Pause video if playing
+        if (viewerVideo) {
+            viewerVideo.pause();
+        }
+        
         fileViewerModal.style.display = 'none';
         
         // Clear content when closed
         viewerImage.src = '';
+        viewerVideo.src = '';
         viewerText.textContent = '';
     });
     
     // Close the modal when clicking outside of it
     window.addEventListener('click', (event) => {
         if (event.target === fileViewerModal) {
+            // Pause video if playing
+            if (viewerVideo) {
+                viewerVideo.pause();
+            }
+            
             fileViewerModal.style.display = 'none';
             
             // Clear content when closed
             viewerImage.src = '';
+            viewerVideo.src = '';
             viewerText.textContent = '';
         }
     });
