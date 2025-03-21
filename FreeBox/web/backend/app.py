@@ -17,10 +17,6 @@ import shutil  # Import shutil for disk space information
 # Import database module
 from backend.database import init_db, get_all_files, add_chat_message, get_recent_chat_messages, record_visit, get_all_stats
 
-# Import blueprints
-from backend.routes import uploads_bp
-from backend.captive_portal import captive_bp
-
 # Initialize SocketIO
 socketio = SocketIO()
 
@@ -64,10 +60,7 @@ def create_app():
     # Create Flask app
     app = Flask(__name__, 
                 static_folder='../frontend', 
-                static_url_path='',
-                # Enable subdomain routing for catching all DNS requests
-                host_matching=True, 
-                subdomain_matching=True)
+                static_url_path='')
     
     # Enable Cross-Origin Resource Sharing
     CORS(app)
@@ -83,10 +76,6 @@ def create_app():
                      engineio_logger=True,
                      ping_timeout=60,
                      ping_interval=25)
-    
-    # Register blueprints
-    app.register_blueprint(uploads_bp)
-    app.register_blueprint(captive_bp)  # Register captive portal blueprint
     
     # Ensure the storage directory exists
     storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage')
@@ -196,6 +185,10 @@ def create_app():
         
         files = get_all_files(limit, offset)
         return jsonify([file.to_dict() for file in files])
+    
+    # Register additional routes from other modules
+    from backend.routes import uploads_bp
+    app.register_blueprint(uploads_bp)
     
     # Register chat blueprint
     from backend.chat import chat_bp
