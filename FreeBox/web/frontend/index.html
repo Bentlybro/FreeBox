@@ -30,8 +30,8 @@
     <main>
         <section id="status">
             <div class="status-container">
-                <div class="status-indicator online"></div>
-                <span class="status-text">FreeBox is online in hotspot mode</span>
+                <div class="status-indicator offline"></div>
+                <span class="status-text">Checking FreeBox status...</span>
             </div>
         </section>
         
@@ -87,6 +87,19 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="multi-action-bar" id="multi-action-bar">
+                        <div class="multi-action-count">
+                            <span id="selected-files-count">0</span> files selected
+                        </div>
+                        <div class="multi-action-buttons">
+                            <button id="multi-download-btn" class="multi-action-btn download">
+                                <i class="fas fa-download"></i> Download Selected
+                            </button>
+                            <button id="multi-delete-btn" class="multi-action-btn delete">
+                                <i class="fas fa-trash-alt"></i> Delete Selected
+                            </button>
+                        </div>
+                    </div>
                     <div id="no-files-message" class="hidden">
                         <p>No files have been shared yet.</p>
                     </div>
@@ -128,6 +141,8 @@
                 <h2>📊 FreeBox Statistics</h2>
                 <p class="stats-description">Statistics update in real-time via WebSockets</p>
                 
+                <!-- Application Stats -->
+                <h3 class="stats-section-title">Application Stats</h3>
                 <div class="stats-grid">
                     <!-- Uptime Stats -->
                     <div class="stat-card uptime">
@@ -146,13 +161,7 @@
                         <h3>📁 Files</h3>
                         <div id="files-value" class="stat-value">Loading...</div>
                     </div>
-                    
-                    <!-- Storage Stats -->
-                    <div class="stat-card storage">
-                        <h3>💾 Storage Used</h3>
-                        <div id="storage-value" class="stat-value">Loading...</div>
-                    </div>
-                    
+                   
                     <!-- Messages Stats -->
                     <div class="stat-card messages">
                         <h3>💬 Messages</h3>
@@ -163,6 +172,37 @@
                     <div class="stat-card popular">
                         <h3>⭐ Most Popular File</h3>
                         <div id="popular-file-value" class="stat-value">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- System Stats -->
+                <h3 class="stats-section-title">System Stats</h3>
+                <div class="stats-grid system-stats-grid">
+                    <!-- Storage Stats -->
+                    <div class="stat-card storage">
+                        <h3>💾 Storage</h3>
+                        <div id="storage-value" class="stat-value">Loading...</div>
+                        <div class="stat-detail">Calculating storage...</div>
+                    </div>
+
+                    <!-- CPU Usage Stats -->
+                    <div class="stat-card cpu">
+                        <h3>🖥️ CPU Usage</h3>
+                        <div id="cpu-usage-value" class="stat-value">Loading...</div>
+                        <div class="stat-detail">Waiting for data...</div>
+                        <div class="progress-container">
+                            <div class="progress-bar low" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- RAM Usage Stats -->
+                    <div class="stat-card ram">
+                        <h3>🧠 RAM Usage</h3>
+                        <div id="ram-usage-value" class="stat-value">Loading...</div>
+                        <div class="stat-detail">Waiting for data...</div>
+                        <div class="progress-container">
+                            <div class="progress-bar low" style="width: 0%"></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -254,6 +294,30 @@
                 <a id="modal-download-btn" href="#" class="modal-btn download-btn">Download</a>
             </div>
         </div>
+    </div>
+    
+    <div id="delete-confirmation-modal" class="confirmation-modal">
+        <div class="confirmation-modal-content">
+            <div class="confirmation-modal-header">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Confirm Deletion</h3>
+            </div>
+            <div class="confirmation-modal-body">
+                <p>Are you sure you want to delete the following file(s)?</p>
+                <div class="confirmation-modal-file-list">
+                    <ul id="files-to-delete-list"></ul>
+                </div>
+                <p>This action cannot be undone.</p>
+            </div>
+            <div class="confirmation-modal-actions">
+                <button id="cancel-delete-btn" class="confirmation-modal-btn cancel">Cancel</button>
+                <button id="confirm-delete-btn" class="confirmation-modal-btn confirm">Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast-container" class="toast-container">
+        <!-- Toast notifications will be added here dynamically -->
     </div>
     
     <script src="js/app.js"></script>

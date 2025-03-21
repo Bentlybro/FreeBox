@@ -83,6 +83,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadProgressFile = document.querySelector('.upload-progress-file');
     const uploadProgressInfo = document.querySelector('.upload-progress-info');
     
+    // Add these variables at the top with your other DOM elements
+    const multiActionBar = document.getElementById('multi-action-bar');
+    const selectedFilesCount = document.getElementById('selected-files-count');
+    const multiDownloadBtn = document.getElementById('multi-download-btn');
+    const multiDeleteBtn = document.getElementById('multi-delete-btn');
+    const deleteConfirmationModal = document.getElementById('delete-confirmation-modal');
+    const filesToDeleteList = document.getElementById('files-to-delete-list');
+    const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    
+    // Add a global variable to track selected files
+    let selectedFiles = [];
+    
+    // Add this to your global variables
+    const toastContainer = document.getElementById('toast-container');
+    
     // Initialize the page
     init();
     
@@ -92,6 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (username) {
             usernameInput.value = username;
         }
+        
+        // Set visitor cookie if not already set
+        setVisitorCookie();
         
         // Check FreeBox status
         checkStatus();
@@ -241,20 +260,45 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Check FreeBox status
     function checkStatus() {
-        fetch('/api/status')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'online') {
-                    statusText.textContent = `FreeBox is online in ${data.mode} mode`;
-                } else {
-                    statusText.textContent = 'FreeBox is offline';
-                    document.querySelector('.status-indicator').classList.remove('online');
+        const statusIndicator = document.querySelector('.status-indicator');
+        
+        // Set a timeout to handle when the server doesn't respond
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timed out')), 3000);
+        });
+        
+        // Try to fetch status with a timeout
+        Promise.race([
+            fetch('/api/status', {
+                credentials: 'include' // Include cookies in the request
+            }),
+            timeoutPromise
+        ])
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server returned an error');
                 }
+                return response.json();
+            })
+            .then(data => {
+                statusText.textContent = `FreeBox is online in ${data.mode} mode`;
+                statusIndicator.classList.add('online');
+                statusIndicator.classList.remove('offline');
+                
+                // Store latest server timestamp for status checking
+                localStorage.setItem('freebox_last_timestamp', data.timestamp);
+                
+                // Schedule the next status check
+                setTimeout(checkStatus, 5000);
             })
             .catch(error => {
                 console.error('Error checking status:', error);
-                statusText.textContent = 'Failed to connect to FreeBox';
-                document.querySelector('.status-indicator').classList.remove('online');
+                statusText.textContent = 'FreeBox is offline';
+                statusIndicator.classList.remove('online');
+                statusIndicator.classList.add('offline');
+                
+                // Retry connection after a delay
+                setTimeout(checkStatus, 10000);
             });
     }
     
@@ -284,7 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshBtn.classList.add('refreshing');
         }
         
-        fetch('/api/stats')
+        fetch('/api/stats', {
+            credentials: 'include' // Include cookies in the request
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to load stats');
@@ -340,7 +386,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const storageElement = document.getElementById('storage-value');
         if (storageElement) {
             const storageSize = formatFileSize(stats.total_storage || 0);
+            
+            // Main value shows used storage with more clarity
             storageElement.textContent = storageSize;
+            
+            // Add storage detail as a separate element
+            let detailElement = storageElement.nextElementSibling;
+            if (!detailElement || !detailElement.classList.contains('stat-detail')) {
+                detailElement = document.createElement('div');
+                detailElement.className = 'stat-detail';
+                storageElement.parentNode.insertBefore(detailElement, storageElement.nextSibling);
+            }
+            
+            // Check if we have valid system data for disk space
+            if (stats.system && stats.system.disk_total) {
+                const totalSize = formatFileSize(stats.system.disk_total);
+                const freeSize = formatFileSize(stats.system.disk_free || 0);
+                detailElement.textContent = `${freeSize} free / ${totalSize} total`;
+            } else {
+                detailElement.textContent = 'No storage information available';
+            }
         }
         
         // Update messages
@@ -356,6 +421,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 popularFileElement.textContent = `${stats.most_downloaded.filename} (${stats.most_downloaded.download_count} downloads)`;
             } else {
                 popularFileElement.textContent = 'No downloads yet';
+            }
+        }
+        
+        // Add system resources info (CPU and RAM)
+        const cpuElement = document.getElementById('cpu-usage-value');
+        if (cpuElement && stats.system) {
+            // Add CPU usage value
+            cpuElement.textContent = `${stats.system.cpu_percent.toFixed(1)}%`;
+            
+            // Update CPU detail
+            let cpuDetailElement = cpuElement.nextElementSibling;
+            if (cpuDetailElement && cpuDetailElement.classList.contains('stat-detail')) {
+                cpuDetailElement.textContent = 'System processor usage';
+            }
+            
+            // Find progress container (should already exist from HTML)
+            const progressContainer = cpuDetailElement.nextElementSibling;
+            if (progressContainer && progressContainer.classList.contains('progress-container')) {
+                // Update progress bar
+                const progressBar = progressContainer.querySelector('.progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = `${stats.system.cpu_percent}%`;
+                    
+                    // Change color based on usage
+                    if (stats.system.cpu_percent > 80) {
+                        progressBar.className = 'progress-bar high';
+                    } else if (stats.system.cpu_percent > 50) {
+                        progressBar.className = 'progress-bar medium';
+                    } else {
+                        progressBar.className = 'progress-bar low';
+                    }
+                }
+            }
+        }
+        
+        // RAM usage
+        const ramElement = document.getElementById('ram-usage-value');
+        if (ramElement && stats.system) {
+            // Add RAM usage value
+            ramElement.textContent = `${stats.system.memory_percent.toFixed(1)}%`;
+            
+            // Update RAM detail
+            let ramDetailElement = ramElement.nextElementSibling;
+            if (ramDetailElement && ramDetailElement.classList.contains('stat-detail')) {
+                ramDetailElement.textContent = `${formatFileSize(stats.system.memory_used)} / ${formatFileSize(stats.system.memory_total)}`;
+            }
+            
+            // Find progress container (should already exist from HTML)
+            const progressContainer = ramDetailElement.nextElementSibling;
+            if (progressContainer && progressContainer.classList.contains('progress-container')) {
+                // Update progress bar
+                const progressBar = progressContainer.querySelector('.progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = `${stats.system.memory_percent}%`;
+                    
+                    // Change color based on usage
+                    if (stats.system.memory_percent > 80) {
+                        progressBar.className = 'progress-bar high';
+                    } else if (stats.system.memory_percent > 50) {
+                        progressBar.className = 'progress-bar medium';
+                    } else {
+                        progressBar.className = 'progress-bar low';
+                    }
+                }
             }
         }
         
@@ -397,8 +526,45 @@ document.addEventListener('DOMContentLoaded', () => {
         
         noFilesMessage.classList.add('hidden');
         
+        // Add a checkbox column to the table header
+        const headerRow = document.querySelector('#file-table thead tr');
+        if (!headerRow.querySelector('.select-column')) {
+            const selectHeader = document.createElement('th');
+            selectHeader.className = 'select-column';
+            selectHeader.style.width = '40px';
+            
+            // Add "Select All" checkbox
+            const selectAllCheckbox = document.createElement('input');
+            selectAllCheckbox.type = 'checkbox';
+            selectAllCheckbox.className = 'file-select-checkbox select-all';
+            selectAllCheckbox.addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.file-select-checkbox:not(.select-all)');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                    handleCheckboxChange(checkbox);
+                });
+            });
+            
+            selectHeader.appendChild(selectAllCheckbox);
+            headerRow.insertBefore(selectHeader, headerRow.firstChild);
+        }
+        
         files.forEach(file => {
             const row = document.createElement('tr');
+            row.dataset.fileId = file.id;
+            
+            // Add checkbox cell
+            const checkboxCell = document.createElement('td');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'file-select-checkbox';
+            checkbox.dataset.fileId = file.id;
+            checkbox.dataset.fileName = file.filename;
+            checkbox.addEventListener('change', function() {
+                handleCheckboxChange(this);
+            });
+            checkboxCell.appendChild(checkbox);
+            row.appendChild(checkboxCell);
             
             // Name cell with description as tooltip
             const nameCell = document.createElement('td');
@@ -477,9 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
             deleteBtn.textContent = 'Delete';
             deleteBtn.className = 'file-action-btn delete';
             deleteBtn.addEventListener('click', () => {
-                if (confirm(`Are you sure you want to delete ${file.filename}?`)) {
-                    deleteFile(file.id);
-                }
+                showDeleteConfirmation([file]);
             });
             
             actionsCell.appendChild(viewBtn);
@@ -496,23 +660,163 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Delete a file
-    function deleteFile(fileId) {
-        fetch(`/api/files/${fileId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                loadFiles();
-            } else {
-                showErrorMessage(`Failed to delete file: ${data.error}`);
+    // Handle checkbox change
+    function handleCheckboxChange(checkbox) {
+        const fileId = checkbox.dataset.fileId;
+        const fileName = checkbox.dataset.fileName;
+        
+        if (checkbox.checked) {
+            // Add to selected files if not already there
+            if (!selectedFiles.some(f => f.id === fileId)) {
+                selectedFiles.push({
+                    id: fileId,
+                    filename: fileName
+                });
             }
-        })
-        .catch(error => {
-            console.error('Error deleting file:', error);
-            showErrorMessage('Failed to delete file. Please try again.');
+        } else {
+            // Remove from selected files
+            selectedFiles = selectedFiles.filter(f => f.id !== fileId);
+            
+            // Uncheck "select all" if any individual checkbox is unchecked
+            const selectAllCheckbox = document.querySelector('.file-select-checkbox.select-all');
+            if (selectAllCheckbox && selectAllCheckbox.checked) {
+                selectAllCheckbox.checked = false;
+            }
+        }
+        
+        // Update UI
+        updateMultiActionBar();
+    }
+    
+    // Update multi-action bar visibility and count
+    function updateMultiActionBar() {
+        if (selectedFiles.length > 0) {
+            multiActionBar.classList.add('visible');
+            selectedFilesCount.textContent = selectedFiles.length;
+        } else {
+            multiActionBar.classList.remove('visible');
+        }
+    }
+    
+    // Show delete confirmation modal
+    function showDeleteConfirmation(files) {
+        // Clear previous list
+        filesToDeleteList.innerHTML = '';
+        
+        // Add files to the list
+        files.forEach(file => {
+            const li = document.createElement('li');
+            li.textContent = file.filename;
+            filesToDeleteList.appendChild(li);
         });
+        
+        // Store files to delete in a data attribute
+        confirmDeleteBtn.dataset.filesToDelete = JSON.stringify(files);
+        
+        // Show the modal
+        deleteConfirmationModal.style.display = 'block';
+    }
+    
+    // Function to show a toast notification
+    function showToast(message, type = 'info') {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // Add icon based on type
+        let iconClass = 'info-circle';
+        if (type === 'success') iconClass = 'check-circle';
+        if (type === 'error') iconClass = 'exclamation-circle';
+        
+        // Create toast content
+        toast.innerHTML = `
+            <span class="toast-icon"><i class="fas fa-${iconClass}"></i></span>
+            <span class="toast-message">${message}</span>
+            <button class="toast-close"><i class="fas fa-times"></i></button>
+        `;
+        
+        // Add to container
+        toastContainer.appendChild(toast);
+        
+        // Set up close button
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', () => {
+            toast.style.animation = 'toast-out 0.3s ease forwards';
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        });
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentNode === toastContainer) {
+                toast.remove();
+            }
+        }, 5000);
+    }
+    
+    // Now modify the deleteMultipleFiles function to use toast instead of alert
+    function deleteMultipleFiles(files) {
+        // Create a counter for tracking progress
+        let deletedCount = 0;
+        let errorCount = 0;
+        
+        // Process each file
+        const deletePromises = files.map(file => {
+            return fetch(`/api/files/${file.id}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    deletedCount++;
+                } else {
+                    errorCount++;
+                    console.error(`Failed to delete ${file.filename}: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                errorCount++;
+                console.error(`Error deleting ${file.filename}:`, error);
+            });
+        });
+        
+        // Wait for all deletions to complete
+        Promise.all(deletePromises)
+            .then(() => {
+                // Show result message as toast instead of alert
+                if (errorCount === 0) {
+                    showToast(`Successfully deleted ${deletedCount} file(s).`, 'success');
+                } else {
+                    showToast(`Deleted ${deletedCount} file(s). Failed to delete ${errorCount} file(s).`, 'error');
+                }
+                
+                // Reload files and reset selection
+                loadFiles();
+                selectedFiles = [];
+                updateMultiActionBar();
+            });
+    }
+    
+    // Download multiple files
+    function downloadMultipleFiles(files) {
+        // For small numbers of files, we can open them in new tabs
+        if (files.length <= 5) {
+            files.forEach(file => {
+                window.open(`/api/download/${file.id}`, '_blank');
+            });
+        } else {
+            // For larger numbers, we should ideally create a zip file on the server
+            // But for now, we'll just inform the user
+            alert(`Downloading ${files.length} files. Check your browser's download manager.`);
+            
+            // Stagger the downloads slightly to avoid overwhelming the browser
+            files.forEach((file, index) => {
+                setTimeout(() => {
+                    window.open(`/api/download/${file.id}`, '_blank');
+                }, index * 300);
+            });
+        }
     }
     
     // Add a chat message to the UI
@@ -747,6 +1051,33 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show Files section by default
         document.querySelectorAll('main > section:not(#status):not(#files-section)').forEach(section => {
             section.style.display = 'none';
+        });
+        
+        // Multi-action buttons
+        multiDownloadBtn.addEventListener('click', () => {
+            downloadMultipleFiles(selectedFiles);
+        });
+        
+        multiDeleteBtn.addEventListener('click', () => {
+            showDeleteConfirmation(selectedFiles);
+        });
+        
+        // Confirmation modal buttons
+        cancelDeleteBtn.addEventListener('click', () => {
+            deleteConfirmationModal.style.display = 'none';
+        });
+        
+        confirmDeleteBtn.addEventListener('click', () => {
+            const filesToDelete = JSON.parse(confirmDeleteBtn.dataset.filesToDelete);
+            deleteMultipleFiles(filesToDelete);
+            deleteConfirmationModal.style.display = 'none';
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === deleteConfirmationModal) {
+                deleteConfirmationModal.style.display = 'none';
+            }
         });
     }
     
@@ -1426,4 +1757,40 @@ document.addEventListener('DOMContentLoaded', () => {
             viewerText.textContent = '';
         }
     });
+    
+    // Set a visitor cookie to track unique visitors
+    function setVisitorCookie() {
+        // Check if visitor cookie exists
+        if (!getCookie('freebox_visitor')) {
+            // Generate a unique visitor ID
+            const visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            // Set cookie with a 24-hour expiration
+            const expiryDate = new Date();
+            expiryDate.setTime(expiryDate.getTime() + (24 * 60 * 60 * 1000)); // 24 hours
+            
+            // Set the cookie
+            document.cookie = `freebox_visitor=${visitorId}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
+            
+            // Notify the server about a new visitor (only if this is a new visitor)
+            fetch('/api/visitor', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include', // Include cookies in the request
+                body: JSON.stringify({ visitorId: visitorId })
+            }).catch(error => {
+                console.error('Error registering visitor:', error);
+            });
+        }
+    }
+    
+    // Helper function to get a cookie value by name
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
 }); 

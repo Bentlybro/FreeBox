@@ -11,6 +11,8 @@ from werkzeug.utils import secure_filename
 import uuid
 import mimetypes
 import datetime
+import psutil  # Import psutil for system stats
+import shutil  # Import shutil for disk space information
 
 # Import database module
 from backend.database import init_db, get_all_files, add_chat_message, get_recent_chat_messages, record_visit, get_all_stats
@@ -85,16 +87,52 @@ def create_app():
     @app.route('/api/status')
     def status():
         """Return the status of the FreeBox"""
+        # Get CPU and memory usage
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+        
+        # Calculate used and total disk space where the storage directory is located
+        storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage')
+        disk_usage = shutil.disk_usage(storage_dir)
+        
         return jsonify({
             'status': 'online',
             'name': 'FreeBox',
-            'mode': 'hotspot'
+            'mode': 'hotspot',
+            'timestamp': datetime.datetime.now().timestamp(),
+            'system': {
+                'cpu_percent': cpu_percent,
+                'memory_percent': memory.percent,
+                'memory_used': memory.used,
+                'memory_total': memory.total,
+                'disk_free': disk_usage.free,
+                'disk_total': disk_usage.total,
+                'disk_used': disk_usage.used
+            }
         })
     
     @app.route('/api/stats')
     def stats():
         """Return statistics about the FreeBox"""
         stats_data = get_all_stats()
+        
+        # Add system stats
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+        
+        # Calculate used and total disk space where the storage directory is located
+        storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage')
+        disk_usage = shutil.disk_usage(storage_dir)
+        
+        stats_data['system'] = {
+            'cpu_percent': cpu_percent,
+            'memory_percent': memory.percent,
+            'memory_used': memory.used,
+            'memory_total': memory.total,
+            'disk_free': disk_usage.free,
+            'disk_total': disk_usage.total,
+            'disk_used': disk_usage.used
+        }
         
         # Broadcast stats to all connected clients
         socketio.emit('stats_updated', stats_data)
