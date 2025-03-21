@@ -41,6 +41,20 @@ echo "Note: You need to restart dhcpcd or reboot for changes to take effect."
 sudo bash -c 'cat > /etc/dnsmasq.conf <<EOT
 interface=wlan0
 dhcp-range=192.168.1.50,192.168.1.150,12h
+# Captive portal configuration
+# Route all DNS requests to our server
+address=/#/192.168.1.1
+# Respond to all DNS requests with our IP
+bogus-priv
+domain-needed
+# Do not read resolv.conf
+no-resolv
+# Do not forward queries
+no-poll
+# Don't forward non-routing addresses
+#bogus-priv
+# Set the DNS server to be the router
+dhcp-option=option:dns-server,192.168.1.1
 EOT'
 
 # Configure hostapd (WiFi access point) - Does NOT start it

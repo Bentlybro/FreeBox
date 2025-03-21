@@ -35,6 +35,34 @@ sudo systemctl restart dnsmasq
 echo "Enabling IP forwarding..."
 sudo sysctl -w net.ipv4.ip_forward=1
 
+# Set up iptables rules for captive portal
+echo "Setting up captive portal redirection rules..."
+# Flush existing rules
+sudo iptables -t nat -F
+
+# Allow established connections
+sudo iptables -t nat -A PREROUTING -i wlan0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# Redirect all HTTP traffic to our server
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.1.1:80
+
+# Redirect Apple captive portal detection
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 17.0.0.0/8 -j DNAT --to-destination 192.168.1.1:80
+
+# Redirect Android captive portal detection
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 8.8.4.4 -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 8.8.8.8 -j DNAT --to-destination 192.168.1.1:80
+
+# Redirect Microsoft captive portal detection
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 131.107.255.255 -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 157.56.106.189 -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 65.55.252.43 -j DNAT --to-destination 192.168.1.1:80
+
+# Save the iptables rules
+sudo iptables-save > /tmp/iptables.rules
+echo "Captive portal redirection rules set up."
+
 echo "Hotspot mode enabled."
 
 # Get the directory of this script

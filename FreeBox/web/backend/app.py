@@ -4,7 +4,7 @@ Core module that sets up the Flask application
 """
 
 import os
-from flask import Flask, send_from_directory, jsonify, request, make_response
+from flask import Flask, send_from_directory, jsonify, request, make_response, redirect
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.utils import secure_filename
@@ -100,11 +100,11 @@ def create_app():
     # Define routes
     @app.route('/')
     def index():
-        """Serve the main page"""
-        # Set or update visitor cookie
-        response = make_response(send_from_directory(app.static_folder, 'index.html'))
+        """Serve the index.html file - the main entry point to the application."""
+        frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
+        response = make_response(send_from_directory(frontend_dir, 'index.html'))
         
-        # Check if visitor already has a cookie
+        # Set or update visitor cookie
         visitor_id = request.cookies.get('freebox_visitor')
         if not visitor_id:
             visitor_id = str(uuid.uuid4())
@@ -112,7 +112,50 @@ def create_app():
             expire_date = datetime.datetime.now() + datetime.timedelta(days=30)
             response.set_cookie('freebox_visitor', visitor_id, expires=expire_date)
             
+            # Record the visit in our database
+            record_visit(request.remote_addr)
+            
         return response
+
+    # Captive Portal Detection Response Routes
+    @app.route('/generate_204')  # Android
+    @app.route('/ncsi.txt')      # Windows
+    @app.route('/connecttest.txt')  # Windows
+    @app.route('/redirect')      # Various devices
+    @app.route('/hotspot-detect.html')  # iOS
+    @app.route('/library/test/success.html')  # iOS
+    @app.route('/success.html')  # iOS/MacOS
+    @app.route('/hotspotdetect.html')  # Some Apple devices
+    def captive_portal_response():
+        """Handle device captive portal detection requests"""
+        user_agent = request.headers.get('User-Agent', '').lower()
+        
+        # Log the detection attempt for debugging
+        print(f"Captive portal detection request from: {user_agent} at {request.path}")
+        
+        # Different responses based on the client
+        if 'cros' in user_agent:  # Chrome OS
+            return redirect('/', code=302)
+        elif 'android' in user_agent:  # Android
+            return '', 204  # Android expects a 204 response for connectivity check
+        elif 'iphone' in user_agent or 'ipad' in user_agent or 'ipod' in user_agent or 'mac' in user_agent:
+            # iOS/MacOS devices
+            response = make_response("""
+            <HTML><HEAD><TITLE>Success</TITLE></HEAD>
+            <BODY>Success</BODY></HTML>
+            """)
+            response.headers['Content-Type'] = 'text/html'
+            return response
+        elif 'windows' in user_agent:  # Windows
+            if request.path == '/ncsi.txt':
+                return 'Microsoft NCSI'
+            elif request.path == '/connecttest.txt':
+                return 'Microsoft Connect Test'
+            else:
+                return redirect('/', code=302)
+        else:
+            # Generic response for other devices
+            return redirect('/', code=302)
     
     @app.route('/api/status')
     def status():
