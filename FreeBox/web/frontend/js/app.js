@@ -1,18 +1,4 @@
 /**
- * DEPRECATED: This file has been split into multiple modular files.
- * Please see the following files for the current implementation:
- * - main.js - Main entry point
- * - fileManager.js - File handling
- * - chatManager.js - Chat functionality
- * - viewerManager.js - File viewer
- * - socketManager.js - Socket.IO connections
- * - uiManager.js - UI interactions
- * - stats.js - Statistics
- * - utils.js - Utility functions
- * - config.js - Configuration
- */
-
-/**
  * FreeBox Web Interface
  * Main JavaScript file for handling the FreeBox user interface
  */
