@@ -44,6 +44,17 @@ dhcp-range=192.168.1.50,192.168.1.150,12h
 # Captive portal configuration
 # Route all DNS requests to our server
 address=/#/192.168.1.1
+# Special handling for Android captive portal detection domains
+address=/connectivitycheck.gstatic.com/192.168.1.1
+address=/connectivitycheck.android.com/192.168.1.1
+address=/clients3.google.com/192.168.1.1
+address=/www.apple.com/192.168.1.1
+address=/captive.apple.com/192.168.1.1
+address=/www.google.com/192.168.1.1
+address=/google.com/192.168.1.1
+address=/play.googleapis.com/192.168.1.1
+address=/www.msftconnecttest.com/192.168.1.1
+address=/www.msftncsi.com/192.168.1.1
 # Respond to all DNS requests with our IP
 bogus-priv
 domain-needed
@@ -51,7 +62,11 @@ domain-needed
 no-resolv
 # Do not forward queries
 no-poll
+# Don't forward non-routing addresses
+# Set the DNS server to be the router
 dhcp-option=option:dns-server,192.168.1.1
+# Cache size
+cache-size=1000
 EOT'
 
 # Configure hostapd (WiFi access point) - Does NOT start it

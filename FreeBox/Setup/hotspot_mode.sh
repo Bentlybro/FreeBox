@@ -39,45 +39,47 @@ sudo sysctl -w net.ipv4.ip_forward=1
 echo "Setting up captive portal redirection rules..."
 # Flush existing rules
 sudo iptables -t nat -F
+sudo iptables -t filter -F
+
+# Create a custom chain for captive portal
+sudo iptables -t nat -N captiveportal 2>/dev/null || sudo iptables -t nat -F captiveportal
 
 # Allow established connections
 sudo iptables -t nat -A PREROUTING -i wlan0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-# Redirect all HTTP traffic to our server
+# Redirect all port 80 and 443 traffic to portal
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.1.1:80
 
 # Redirect DNS queries to our server
 sudo iptables -t nat -A PREROUTING -i wlan0 -p udp --dport 53 -j DNAT --to-destination 192.168.1.1:53
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 53 -j DNAT --to-destination 192.168.1.1:53
 
-# Redirect Apple captive portal detection - more specific rules
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d captive.apple.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.apple.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d gsp1.apple.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.icloud.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 17.0.0.0/8 -j DNAT --to-destination 192.168.1.1:80
+# Specially handle Android captive portal detection (IP addresses for known endpoints)
+# Google connectivity check IP addresses
+for ip in 64.233.161.139 74.125.127.100 74.125.130.100 74.125.136.100 74.125.140.100 173.194.32.100 173.194.36.100 172.217.13.238; do
+    sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d $ip -j DNAT --to-destination 192.168.1.1:80
+done
 
-# Redirect Android captive portal detection - more specific rules
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d connectivitycheck.gstatic.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d connectivitycheck.android.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d clients3.google.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 8.8.4.4 -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 8.8.8.8 -j DNAT --to-destination 192.168.1.1:80
+# Make sure Android connectivity check always redirects
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -m string --string "connectivitycheck" --algo bm -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -m string --string "connectivitycheck" --algo bm -j DNAT --to-destination 192.168.1.1:80
 
-# Redirect Microsoft captive portal detection - more specific rules
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.msftncsi.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.msftconnecttest.com -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 131.107.255.255 -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 157.56.106.189 -j DNAT --to-destination 192.168.1.1:80
-sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 65.55.252.43 -j DNAT --to-destination 192.168.1.1:80
+# --- Additional fallback rules, to be more robust ---
 
-# Create a MASQUERADE rule for outgoing traffic if internet sharing is desired
-# Comment this out if you only want local network without internet
-# sudo iptables -t nat -A POSTROUTING -j MASQUERADE
+# Set up transparent interception for all outgoing traffic
+sudo iptables -t nat -A PREROUTING -i wlan0 -j captiveportal
+
+# Catch-all: Send all web traffic to captive portal
+sudo iptables -t nat -A captiveportal -i wlan0 -p tcp -m multiport --dports 80,443 -j DNAT --to-destination 192.168.1.1:80
 
 # Save the iptables rules
 sudo iptables-save > /tmp/iptables.rules
 echo "Captive portal redirection rules set up."
+
+# Create transparent redirection for DNS as well to avoid DNS spoofing issues
+sudo iptables -t filter -A FORWARD -j ACCEPT
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
 echo "Hotspot mode enabled."
 

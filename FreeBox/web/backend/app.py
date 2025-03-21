@@ -120,6 +120,8 @@ def create_app():
     # Captive Portal Detection Response Routes
     @app.route('/generate_204')  # Android
     @app.route('/gen_204')       # Android
+    @app.route('/generate_204', host='connectivitycheck.gstatic.com')  # Android explicit
+    @app.route('/generate_204', host='connectivitycheck.android.com')  # Android explicit
     @app.route('/ncsi.txt')      # Windows
     @app.route('/connecttest.txt')  # Windows
     @app.route('/redirect')      # Various devices
@@ -135,17 +137,29 @@ def create_app():
         """Handle device captive portal detection requests"""
         user_agent = request.headers.get('User-Agent', '').lower()
         source_ip = request.remote_addr
+        host = request.host
         
         # Log the detection attempt for debugging
-        print(f"Captive portal detection request from: {source_ip} ({user_agent}) at {request.path}")
+        print(f"Captive portal detection request from: {source_ip} ({user_agent}) at {request.path}, host: {host}")
         
         # Different responses based on the path or user agent
-        if request.path in ['/generate_204', '/gen_204']:
-            if 'android' in user_agent or 'dalvik' in user_agent:
-                # Redirect to homepage for Android
-                return redirect('/', code=302)
+        if 'android' in user_agent or 'dalvik' in user_agent:
+            # Android-specific handling
+            if request.path in ['/generate_204', '/gen_204']:
+                # For Android devices:
+                # - If we return 204, Android thinks it has internet
+                # - If we return 302, Android shows the captive portal
+                return redirect('http://192.168.1.1/', code=302)
             else:
-                # For Chrome browsers or other devices expecting a 204
+                # For other Android paths
+                return redirect('http://192.168.1.1/', code=302)
+        
+        elif request.path in ['/generate_204', '/gen_204']:
+            # For non-Android devices requesting these Android-specific endpoints
+            if 'cros' in user_agent:  # Chrome OS
+                return redirect('http://192.168.1.1/', code=302)
+            else:
+                # Some browsers like Chrome use this too, but want 204
                 return '', 204
                 
         elif request.path == '/ncsi.txt':
@@ -177,7 +191,7 @@ def create_app():
             return "Kindle Wifi", 200
         
         # Generic response for everything else: redirect to homepage
-        return redirect('/', code=302)
+        return redirect('http://192.168.1.1/', code=302)
     
     @app.route('/api/status')
     def status():
