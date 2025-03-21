@@ -231,21 +231,37 @@ def server_status():
         cpu_percent = psutil.cpu_percent(interval=0.5)
         memory = psutil.virtual_memory()
         
+        # Calculate available memory percentage (100 - used_percent)
+        available_memory_percent = 100 - memory.percent
+        
         # Based on server load, suggest the optimal number of concurrent uploads
-        if cpu_percent > 80 or memory.percent > 80:
+        # Prioritize CPU availability since it's typically the bottleneck for file processing
+        if cpu_percent > 80:
             recommended_concurrent = 1
-        elif cpu_percent > 60 or memory.percent > 60:
-            recommended_concurrent = 2
-        elif cpu_percent > 40 or memory.percent > 40:
+        elif cpu_percent > 60:
             recommended_concurrent = 3
+        elif cpu_percent > 40:
+            recommended_concurrent = 5
+        elif cpu_percent > 20:
+            recommended_concurrent = 8
         else:
-            recommended_concurrent = 4
+            # Very low CPU usage - allow more concurrent uploads
+            recommended_concurrent = 12
+            
+        # Further adjust based on available memory
+        if available_memory_percent < 20:
+            # Critical memory situation - reduce concurrent uploads
+            recommended_concurrent = max(1, recommended_concurrent // 3)
+        elif available_memory_percent < 40:
+            # Low memory - reduce concurrent uploads
+            recommended_concurrent = max(1, recommended_concurrent // 2)
             
         return jsonify({
             'success': True,
             'server_load': {
                 'cpu_percent': cpu_percent,
-                'memory_percent': memory.percent
+                'memory_percent': memory.percent,
+                'available_memory_percent': available_memory_percent
             },
             'recommended_concurrent_uploads': recommended_concurrent
         })
@@ -255,8 +271,9 @@ def server_status():
             'success': True,
             'server_load': {
                 'cpu_percent': 0,
-                'memory_percent': 0
+                'memory_percent': 0,
+                'available_memory_percent': 0
             },
-            'recommended_concurrent_uploads': 2,
+            'recommended_concurrent_uploads': 4,  # Increased default from 2 to 4
             'error': str(e)
         }) 
