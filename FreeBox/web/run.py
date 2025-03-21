@@ -5,6 +5,10 @@ This script starts the Flask application that serves the FreeBox web interface.
 """
 
 import os
+import eventlet
+# Patch standard library to work with eventlet
+eventlet.monkey_patch()
+
 from backend.app import create_app, socketio
 
 if __name__ == "__main__":
@@ -18,7 +22,8 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=80,  # Standard HTTP port
-        debug=False  # Disable debug mode in production
+        debug=False,  # Disable debug mode in production
+        use_reloader=False  # Disable reloader for production
     ) 
     print("Starting FreeBox web interface...")
     print("The FreeBox web interface will be available at http://192.168.1.1")

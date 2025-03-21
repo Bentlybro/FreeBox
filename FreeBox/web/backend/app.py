@@ -37,7 +37,13 @@ def create_app():
     init_db(app)
     
     # Initialize SocketIO with the app
-    socketio.init_app(app, cors_allowed_origins="*")
+    socketio.init_app(app, 
+                     cors_allowed_origins="*", 
+                     async_mode='eventlet',
+                     logger=True, 
+                     engineio_logger=True,
+                     ping_timeout=60,
+                     ping_interval=25)
     
     # Ensure the storage directory exists
     storage_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage')
@@ -123,10 +129,11 @@ def setup_socketio_events():
     @socketio.on('connect')
     def handle_connect():
         """Handle client connection"""
-        print(f"Client connected: {request.sid}")
+        sid = request.sid
+        print(f"Client connected with SID: {sid}")
         
         # Emit current stats to the newly connected client
-        socketio.emit('stats_updated', get_all_stats(), room=request.sid)
+        socketio.emit('stats_updated', get_all_stats(), room=sid)
     
     @socketio.on('disconnect')
     def handle_disconnect():
@@ -135,23 +142,31 @@ def setup_socketio_events():
         print(f"Client disconnected: {sid}")
         
         # Find which rooms this user was in
+        found_in_room = False
         for room, users in connected_users.items():
             if sid in users:
                 username = users[sid]
                 del users[sid]
+                found_in_room = True
+                
+                print(f"User {username} with SID {sid} removed from room {room}")
+                print(f"Remaining users in room {room}: {len(users)}")
                 
                 # Notify others that user has left
-                emit('user_left', {
+                socketio.emit('user_left', {
                     'username': username,
                     'room': room,
                     'message': f"{username} has left the room."
                 }, room=room)
                 
                 # Send updated user count
-                emit('user_count', {'count': len(users)}, room=room)
+                socketio.emit('user_count', {'count': len(users)}, room=room)
                 
-                # Update stats for all clients
-                socketio.emit('stats_updated', get_all_stats())
+        if not found_in_room:
+            print(f"Disconnected client {sid} was not found in any room")
+            
+        # Update stats for all clients
+        socketio.emit('stats_updated', get_all_stats())
     
     @socketio.on('join')
     def handle_join(data):
@@ -160,17 +175,22 @@ def setup_socketio_events():
         room = data.get('room', 'main')
         username = data.get('username', 'Anonymous')
         
+        print(f"User {username} with SID {sid} is joining room {room}")
+        
+        # Join the Socket.IO room
         join_room(room)
         
         # Initialize room if it doesn't exist
         if room not in connected_users:
             connected_users[room] = {}
+            print(f"Created new room: {room}")
         
         # Add user to room
         connected_users[room][sid] = username
+        print(f"Added user {username} to room {room}. Total users: {len(connected_users[room])}")
         
         # Notify other users in the room
-        emit('user_joined', {
+        socketio.emit('user_joined', {
             'username': username,
             'room': room,
             'message': f"{username} has joined the room."
@@ -178,10 +198,13 @@ def setup_socketio_events():
         
         # Send recent messages to the user
         messages = get_recent_chat_messages(room)
-        emit('chat_history', [message.to_dict() for message in messages])
+        print(f"Sending {len(messages)} recent messages to user {username}")
+        socketio.emit('chat_history', [message.to_dict() for message in messages], room=sid)
         
         # Send current user count to all users in the room
-        emit('user_count', {'count': len(connected_users[room])}, room=room)
+        user_count = len(connected_users[room])
+        print(f"Broadcasting user count update: {user_count} users in room {room}")
+        socketio.emit('user_count', {'count': user_count}, room=room)
         
         # Update stats for all clients
         socketio.emit('stats_updated', get_all_stats())
@@ -216,12 +239,16 @@ def setup_socketio_events():
     @socketio.on('chat_message')
     def handle_chat_message(data):
         """Handle a chat message from a client"""
+        sid = request.sid
         room = data.get('room', 'main')
         username = data.get('username', 'Anonymous')
         message = data.get('message', '')
         
         if not message.strip():
             return
+        
+        print(f"Received message from {username} in room {room}: {message[:20]}...")
+        print(f"Current users in room {room}: {connected_users.get(room, {})}")
         
         # Store the message in the database
         chat_msg = add_chat_message(
@@ -232,7 +259,10 @@ def setup_socketio_events():
         )
         
         # Broadcast the message to everyone in the room
-        emit('chat_message', chat_msg.to_dict(), room=room)
+        socketio.emit('chat_message', chat_msg.to_dict(), room=room)
+        
+        # Log the broadcast
+        print(f"Broadcasted message to room {room}")
         
         # Update stats for all clients
         socketio.emit('stats_updated', get_all_stats())

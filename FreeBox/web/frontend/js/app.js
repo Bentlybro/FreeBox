@@ -134,8 +134,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup WebSockets
     function setupWebSockets() {
         try {
-            // Connect to the WebSocket server (Socket.IO)
-            socket = io();
+            // Connect to the WebSocket server (Socket.IO) with explicit transport options
+            socket = io({
+                transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                timeout: 20000
+            });
             
             // Connection events
             socket.on('connect', () => {
@@ -150,6 +156,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Request updated stats
                 socket.emit('request_stats_update');
+                
+                // Add a system message
+                addSystemMessage('Connected to the server. Chat is ready.');
+            });
+            
+            socket.on('connect_error', (error) => {
+                console.error('Connection error:', error);
+                isConnected = false;
+                addSystemMessage('Connection error: ' + error.message);
             });
             
             socket.on('disconnect', () => {
