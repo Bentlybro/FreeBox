@@ -47,17 +47,33 @@ sudo iptables -t nat -A PREROUTING -i wlan0 -m conntrack --ctstate ESTABLISHED,R
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.1.1:80
 
-# Redirect Apple captive portal detection
+# Redirect DNS queries to our server
+sudo iptables -t nat -A PREROUTING -i wlan0 -p udp --dport 53 -j DNAT --to-destination 192.168.1.1:53
+
+# Redirect Apple captive portal detection - more specific rules
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d captive.apple.com -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.apple.com -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d gsp1.apple.com -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.icloud.com -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 17.0.0.0/8 -j DNAT --to-destination 192.168.1.1:80
 
-# Redirect Android captive portal detection
+# Redirect Android captive portal detection - more specific rules
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d connectivitycheck.gstatic.com -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d connectivitycheck.android.com -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d clients3.google.com -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 8.8.4.4 -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 8.8.8.8 -j DNAT --to-destination 192.168.1.1:80
 
-# Redirect Microsoft captive portal detection
+# Redirect Microsoft captive portal detection - more specific rules
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.msftncsi.com -j DNAT --to-destination 192.168.1.1:80
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d www.msftconnecttest.com -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 131.107.255.255 -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 157.56.106.189 -j DNAT --to-destination 192.168.1.1:80
 sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp -d 65.55.252.43 -j DNAT --to-destination 192.168.1.1:80
+
+# Create a MASQUERADE rule for outgoing traffic if internet sharing is desired
+# Comment this out if you only want local network without internet
+# sudo iptables -t nat -A POSTROUTING -j MASQUERADE
 
 # Save the iptables rules
 sudo iptables-save > /tmp/iptables.rules

@@ -119,6 +119,7 @@ def create_app():
 
     # Captive Portal Detection Response Routes
     @app.route('/generate_204')  # Android
+    @app.route('/gen_204')       # Android
     @app.route('/ncsi.txt')      # Windows
     @app.route('/connecttest.txt')  # Windows
     @app.route('/redirect')      # Various devices
@@ -126,36 +127,57 @@ def create_app():
     @app.route('/library/test/success.html')  # iOS
     @app.route('/success.html')  # iOS/MacOS
     @app.route('/hotspotdetect.html')  # Some Apple devices
+    @app.route('/kindle-wifi/wifistub.html')  # Kindle
+    @app.route('/mobile/status.php')  # Various mobile devices
+    @app.route('/check_network_status.txt')  # Various
+    @app.route('/wpad.dat')      # Windows proxy detection
     def captive_portal_response():
         """Handle device captive portal detection requests"""
         user_agent = request.headers.get('User-Agent', '').lower()
+        source_ip = request.remote_addr
         
         # Log the detection attempt for debugging
-        print(f"Captive portal detection request from: {user_agent} at {request.path}")
+        print(f"Captive portal detection request from: {source_ip} ({user_agent}) at {request.path}")
         
-        # Different responses based on the client
-        if 'cros' in user_agent:  # Chrome OS
-            return redirect('/', code=302)
-        elif 'android' in user_agent:  # Android
-            return '', 204  # Android expects a 204 response for connectivity check
-        elif 'iphone' in user_agent or 'ipad' in user_agent or 'ipod' in user_agent or 'mac' in user_agent:
-            # iOS/MacOS devices
+        # Different responses based on the path or user agent
+        if request.path in ['/generate_204', '/gen_204']:
+            if 'android' in user_agent or 'dalvik' in user_agent:
+                # Redirect to homepage for Android
+                return redirect('/', code=302)
+            else:
+                # For Chrome browsers or other devices expecting a 204
+                return '', 204
+                
+        elif request.path == '/ncsi.txt':
+            # Microsoft connectivity test
+            return 'Microsoft NCSI', 200, {'Content-Type': 'text/plain'}
+            
+        elif request.path == '/connecttest.txt':
+            # Another Microsoft connectivity test
+            return 'Microsoft Connect Test', 200, {'Content-Type': 'text/plain'}
+            
+        elif request.path == '/wpad.dat':
+            # Windows proxy detection
+            return 'function FindProxyForURL(url, host) { return "DIRECT"; }', 200, {'Content-Type': 'application/x-ns-proxy-autoconfig'}
+            
+        elif '/hotspot-detect' in request.path or '/library/test/success' in request.path or request.path == '/success.html':
+            # Apple devices
             response = make_response("""
-            <HTML><HEAD><TITLE>Success</TITLE></HEAD>
-            <BODY>Success</BODY></HTML>
+            <!DOCTYPE html>
+            <HTML><HEAD>
+            <TITLE>Success</TITLE>
+            <meta http-equiv="refresh" content="0; url=http://192.168.1.1/">
+            </HEAD><BODY>Success</BODY></HTML>
             """)
             response.headers['Content-Type'] = 'text/html'
             return response
-        elif 'windows' in user_agent:  # Windows
-            if request.path == '/ncsi.txt':
-                return 'Microsoft NCSI'
-            elif request.path == '/connecttest.txt':
-                return 'Microsoft Connect Test'
-            else:
-                return redirect('/', code=302)
-        else:
-            # Generic response for other devices
-            return redirect('/', code=302)
+            
+        elif 'kindle' in user_agent or request.path == '/kindle-wifi/wifistub.html':
+            # Kindle devices
+            return "Kindle Wifi", 200
+        
+        # Generic response for everything else: redirect to homepage
+        return redirect('/', code=302)
     
     @app.route('/api/status')
     def status():
