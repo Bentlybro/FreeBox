@@ -8,4 +8,5 @@ flask-cors==4.0.0
 flask-sqlalchemy==3.0.5
 flask-socketio==5.3.4
 python-socketio==5.8.0
-eventlet==0.33.3 
+eventlet==0.33.3
+psutil==5.9.5 

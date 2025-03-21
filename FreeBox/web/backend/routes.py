@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify, send_file, current_app, abort
 from werkzeug.utils import secure_filename
 from backend.database import add_file, get_file_by_id, get_file_by_filename, increment_download_count, delete_file, get_all_stats
 from backend.app import socketio
+import psutil
 
 # Create a blueprint for upload-related routes
 uploads_bp = Blueprint('uploads', __name__)
@@ -220,4 +221,42 @@ def delete_file_route(file_id):
         else:
             return jsonify({'success': False, 'error': 'Failed to delete from database'}), 500
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500 
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@uploads_bp.route('/api/server-status', methods=['GET'])
+def server_status():
+    """Return server status information that can help clients optimize uploads"""
+    try:
+        # Get CPU and memory usage data
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        memory = psutil.virtual_memory()
+        
+        # Based on server load, suggest the optimal number of concurrent uploads
+        if cpu_percent > 80 or memory.percent > 80:
+            recommended_concurrent = 1
+        elif cpu_percent > 60 or memory.percent > 60:
+            recommended_concurrent = 2
+        elif cpu_percent > 40 or memory.percent > 40:
+            recommended_concurrent = 3
+        else:
+            recommended_concurrent = 4
+            
+        return jsonify({
+            'success': True,
+            'server_load': {
+                'cpu_percent': cpu_percent,
+                'memory_percent': memory.percent
+            },
+            'recommended_concurrent_uploads': recommended_concurrent
+        })
+    except Exception as e:
+        # If there's an error with psutil, default to conservative values
+        return jsonify({
+            'success': True,
+            'server_load': {
+                'cpu_percent': 0,
+                'memory_percent': 0
+            },
+            'recommended_concurrent_uploads': 2,
+            'error': str(e)
+        }) 

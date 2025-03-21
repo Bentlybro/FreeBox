@@ -896,22 +896,53 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadProgressContainer.classList.remove('hidden');
         uploadProgressBar.style.width = '0%';
         uploadProgressStatus.textContent = '0%';
-        uploadProgressInfo.textContent = `0 of ${filesToUpload.length} files`;
+        uploadProgressInfo.textContent = `Preparing to upload ${filesToUpload.length} files...`;
         
         // Variables to track upload progress
         let filesUploaded = 0;
-        let totalProgress = 0;
+        let filesInProgress = 0;
+        let maxConcurrentUploads = 3; // Default value, will be updated based on server status
+        const fileProgress = {}; // Track progress for each file by index
         
-        // Process files one by one for better progress tracking
-        uploadNextFile(0);
+        // Initialize progress for each file
+        filesToUpload.forEach((_, index) => {
+            fileProgress[index] = 0;
+        });
         
-        function uploadNextFile(index) {
-            if (index >= filesToUpload.length) {
-                // All files uploaded
-                finishUpload();
-                return;
+        // First, fetch server status to get optimal concurrent uploads setting
+        fetch('/api/server-status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update max concurrent uploads based on server recommendation
+                    maxConcurrentUploads = data.recommended_concurrent_uploads || maxConcurrentUploads;
+                    console.log(`Server recommends ${maxConcurrentUploads} concurrent uploads`);
+                }
+            })
+            .catch(error => {
+                console.warn('Could not fetch server status, using default concurrency:', error);
+            })
+            .finally(() => {
+                // Start uploading files regardless of whether the status fetch succeeded
+                uploadProgressInfo.textContent = `Starting uploads (${maxConcurrentUploads} at a time)...`;
+                
+                // Start initial batch of uploads
+                startUploads(0);
+            });
+        
+        // Function to start multiple uploads up to the concurrent limit
+        function startUploads(startIndex) {
+            // Start as many uploads as allowed by the concurrent limit
+            for (let i = startIndex; i < filesToUpload.length && filesInProgress < maxConcurrentUploads; i++) {
+                if (fileProgress[i] === 0) { // Only start uploads that haven't been started
+                    uploadFile(i);
+                    filesInProgress++;
+                }
             }
-            
+        }
+        
+        // Function to upload a single file
+        function uploadFile(index) {
             const file = filesToUpload[index];
             const formData = new FormData();
             
@@ -921,6 +952,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let fileDescription = '';
             
             if (fileItem) {
+                // Add "uploading" visual indicator to this file item
+                fileItem.classList.add('uploading');
+                
                 // Get custom filename if provided
                 const renameInput = fileItem.querySelector('.file-rename-input');
                 if (renameInput && renameInput.value.trim() !== '') {
@@ -939,9 +973,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // Update progress display
-            uploadProgressFile.textContent = customName || file.name;
-            uploadProgressInfo.textContent = `${index + 1} of ${filesToUpload.length} files`;
+            // Update files in progress display
+            uploadProgressInfo.textContent = `${filesUploaded} completed, ${filesInProgress} in progress (of ${filesToUpload.length})`;
+            
+            // Display the current file name
+            const displayName = customName || file.name;
+            uploadProgressFile.textContent = `Now uploading: ${displayName}`;
             
             // Append file to formData
             formData.append('file', file);
@@ -962,19 +999,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Track upload progress for this file
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
-                    // Calculate progress for this file
-                    const fileProgress = (e.loaded / e.total) * 100;
+                    // Calculate progress percentage for this file (0-100)
+                    const thisFileProgress = (e.loaded / e.total) * 100;
+                    fileProgress[index] = thisFileProgress;
                     
                     // Calculate total progress across all files
-                    // Each file contributes its proportion to the total
-                    const fileContribution = fileProgress / filesToUpload.length;
+                    updateTotalProgress();
                     
-                    // Add completed files contribution
-                    const completedContribution = (filesUploaded / filesToUpload.length) * 100;
-                    
-                    // Update progress bar
-                    const totalPercentage = completedContribution + fileContribution;
-                    updateProgress(totalPercentage);
+                    // Update individual file item progress if available
+                    if (fileItem) {
+                        updateFileItemProgress(fileItem, thisFileProgress);
+                    }
                 }
             });
             
@@ -984,30 +1019,107 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         const response = JSON.parse(xhr.responseText);
                         if (response.success) {
-                            // Increment counter and continue with next file
+                            console.log(`Uploaded file: ${file.name}`);
+                            // Mark this file as complete (100%)
+                            fileProgress[index] = 100;
                             filesUploaded++;
+                            filesInProgress--;
                             
-                            // Continue with next file
-                            uploadNextFile(index + 1);
+                            // Remove uploading indicator and add completed indicator
+                            if (fileItem) {
+                                fileItem.classList.remove('uploading');
+                                fileItem.classList.add('upload-complete');
+                            }
+                            
+                            // Update overall progress
+                            updateTotalProgress();
+                            
+                            // Update status info
+                            uploadProgressInfo.textContent = `${filesUploaded} completed, ${filesInProgress} in progress (of ${filesToUpload.length})`;
+                            
+                            // If all files are uploaded, finish up
+                            if (filesUploaded === filesToUpload.length) {
+                                finishUpload();
+                            } else {
+                                // Otherwise, start a new upload if there are files waiting
+                                startUploads(index + 1);
+                            }
                         } else {
                             handleUploadError(`Failed to upload ${file.name}: ${response.error || 'Unknown error'}`);
+                            
+                            // Start the next file
+                            filesInProgress--;
+                            startUploads(index + 1);
                         }
                     } catch (error) {
                         handleUploadError(`Failed to parse response for ${file.name}`);
+                        
+                        // Start the next file
+                        filesInProgress--;
+                        startUploads(index + 1);
                     }
                 } else {
                     handleUploadError(`Server returned status ${xhr.status} for ${file.name}`);
+                    
+                    // Start the next file
+                    filesInProgress--;
+                    startUploads(index + 1);
                 }
             };
             
             // Handle upload error
             xhr.onerror = function() {
                 handleUploadError(`Network error while uploading ${file.name}`);
+                
+                // Remove the file from progress tracking
+                filesInProgress--;
+                
+                // Try to start next file
+                startUploads(index + 1);
             };
             
             // Set up request and send
             xhr.open('POST', '/api/upload', true);
             xhr.send(formData);
+        }
+        
+        // Update visual progress indicator for a file item
+        function updateFileItemProgress(fileItem, progress) {
+            // Add progress indicator if it doesn't exist
+            let progressBar = fileItem.querySelector('.file-item-progress');
+            if (!progressBar) {
+                progressBar = document.createElement('div');
+                progressBar.className = 'file-item-progress-container';
+                
+                const bar = document.createElement('div');
+                bar.className = 'file-item-progress';
+                progressBar.appendChild(bar);
+                
+                // Insert after the header
+                const header = fileItem.querySelector('.file-item-header');
+                header.parentNode.insertBefore(progressBar, header.nextSibling);
+            }
+            
+            // Update the progress bar
+            const barElement = progressBar.querySelector('.file-item-progress');
+            barElement.style.width = `${progress}%`;
+        }
+        
+        // Calculate and update the total progress
+        function updateTotalProgress() {
+            // Calculate average progress across all files
+            let totalProgress = 0;
+            
+            // Sum up progress of all files
+            Object.values(fileProgress).forEach(progress => {
+                totalProgress += progress;
+            });
+            
+            // Calculate average (divide by total number of files)
+            const overallProgress = totalProgress / filesToUpload.length;
+            
+            // Update overall progress bar
+            updateProgress(overallProgress);
         }
         
         function updateProgress(percentage) {
@@ -1020,14 +1132,15 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Upload error:', errorMessage);
             showErrorMessage(`Upload failed: ${errorMessage}`);
             
-            // Reset UI
-            resetUploadUI();
+            // Note: We don't reset the UI here because we want to continue
+            // with other uploads if possible. Only show the error.
         }
         
         function finishUpload() {
             // Update progress to 100%
             updateProgress(100);
             uploadProgressFile.textContent = 'Upload complete!';
+            uploadProgressInfo.textContent = `All ${filesToUpload.length} files uploaded successfully!`;
             
             // Wait a moment to show the completed progress before resetting
             setTimeout(() => {
