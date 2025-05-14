@@ -60,8 +60,13 @@ FreeBox is an offline file sharing and communication platform inspired by Pirate
    ```
 
 5. **Access FreeBox**:
-   - Connect to the "FreeBox" WiFi network
-   - Open http://192.168.1.1 in your browser
+   - FreeBox will start automatically after reboot
+   - **Hotspot mode**: If your Pi can't connect to WiFi, it will create a "FreeBox" WiFi network
+     - Connect to the "FreeBox" WiFi network on your device
+     - Navigate to http://192.168.1.1 in your browser
+   - **Client mode**: If your Pi connects to your home WiFi
+     - Find your Pi's IP address on your network (using router admin page or tools like nmap)
+     - Navigate to that IP address in your browser (e.g., http://192.168.0.105)
 
 ## Installation
 
