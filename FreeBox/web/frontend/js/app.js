@@ -1602,6 +1602,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Clear the description
                 globalFileDescription.value = '';
                 
+                // Hide clear queue button
+                clearQueueBtn.style.display = 'none';
+                
                 // Notify all clients via WebSocket
                 if (isConnected) {
                     socket.emit('file_uploaded', {});
@@ -1622,6 +1625,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Reset the upload queue
+    function resetUploadQueue() {
+        // Clear the files array
+        filesToUpload = [];
+        
         // Clear the UI list
         fileList.innerHTML = '';
         
