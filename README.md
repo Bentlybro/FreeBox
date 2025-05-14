@@ -56,7 +56,7 @@ FreeBox is an offline file sharing and communication platform inspired by Pirate
 
 4. **Restart the Pi**
    ```bash
-   sudo reboot
+   sudo reboot -h now
    ```
 
 5. **Access FreeBox**:
