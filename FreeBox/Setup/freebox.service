@@ -1,0 +1,15 @@
+[Unit]
+Description=FreeBox Auto-Connect Service
+After=network.target NetworkManager.service systemd-networkd.service
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/pi/FreeBox/Setup/freebox_autostart.sh
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 

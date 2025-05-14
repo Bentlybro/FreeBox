@@ -62,4 +62,12 @@ sudo sed -i 's|#DAEMON_CONF=""|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/de
 sudo sed -i 's|#net.ipv4.ip_forward=1|net.ipv4.ip_forward=1|' /etc/sysctl.conf
 echo "Note: IP forwarding is configured but not yet applied. Run 'sudo sysctl -p' when you are ready."
 
-echo "Setup complete! You can now reboot or manually start the hotspot using sudo ./hotspot_mode.sh"
+echo "Setup complete!"
+echo ""
+echo "To install the auto-switching service (start as hotspot if WiFi fails):"
+echo "  sudo ./install_service.sh"
+echo ""
+echo "Alternatively, you can manually start the hotspot using:"
+echo "  sudo ./hotspot_mode.sh"
+echo ""
+echo "It's recommended to reboot your system after installation."
