@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingFiles = document.getElementById('loading-files');
     const statusText = document.querySelector('.status-text');
     const globalFileDescription = document.getElementById('global-file-description');
+    const clearQueueBtn = document.createElement('button');
     
     // DOM Elements - Chat
     const chatMessages = document.getElementById('chat-messages');
@@ -592,6 +593,12 @@ document.addEventListener('DOMContentLoaded', () => {
             headerRow.insertBefore(selectHeader, headerRow.firstChild);
         }
         
+        // Update file count display
+        const fileCountDisplay = document.getElementById('file-count-display');
+        if (fileCountDisplay) {
+            fileCountDisplay.textContent = `(${files.length} ${files.length === 1 ? 'file' : 'files'})`;
+        }
+        
         files.forEach(file => {
             const row = document.createElement('tr');
             row.dataset.fileId = file.id;
@@ -983,15 +990,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle drag and drop
         fileDropArea.addEventListener('dragover', e => {
             e.preventDefault();
+            e.stopPropagation();
             fileDropArea.classList.add('highlight');
         });
         
-        fileDropArea.addEventListener('dragleave', () => {
+        fileDropArea.addEventListener('dragleave', e => {
+            e.preventDefault();
+            e.stopPropagation();
             fileDropArea.classList.remove('highlight');
         });
         
         fileDropArea.addEventListener('drop', e => {
             e.preventDefault();
+            e.stopPropagation();
             fileDropArea.classList.remove('highlight');
             
             const files = e.dataTransfer.files;
@@ -1122,12 +1133,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteConfirmationModal.style.display = 'none';
             }
         });
+        
+        // Setup Clear Queue button
+        clearQueueBtn.type = 'button';
+        clearQueueBtn.id = 'clear-queue-btn';
+        clearQueueBtn.className = 'clear-queue-btn';
+        clearQueueBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Queue';
+        clearQueueBtn.style.display = 'none'; // Hide initially
+        
+        // Add Clear Queue button before the Upload button
+        uploadBtn.parentNode.insertBefore(clearQueueBtn, uploadBtn);
+        
+        // Add event listener to Clear Queue button
+        clearQueueBtn.addEventListener('click', resetUploadQueue);
     }
     
     // Handle file selection from input
     function handleFileSelect(e) {
         const files = e.target.files;
         handleFiles(files);
+        
+        // Clear the file input to ensure that selecting the same files again will trigger the change event
+        fileInput.value = '';
     }
     
     // Process selected files
@@ -1136,9 +1163,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Add files to the list
         for (const file of files) {
-            if (!fileExists(file.name)) {
+            // Improved duplicate detection - check by file name and size for better accuracy
+            const isDuplicate = filesToUpload.some(existingFile => 
+                existingFile.name === file.name && existingFile.size === file.size
+            );
+            
+            if (!isDuplicate) {
                 filesToUpload.push(file);
                 addFileToList(file);
+            } else {
+                console.log(`Skipping duplicate file: ${file.name}`);
             }
         }
         
@@ -1146,7 +1180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadBtn.disabled = filesToUpload.length === 0;
     }
     
-    // Check if file already exists in the list
+    // Check if file already exists in the list - improved version
     function fileExists(filename) {
         return filesToUpload.some(file => file.name === filename);
     }
@@ -1272,6 +1306,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Enable the upload button
         uploadBtn.disabled = false;
+        
+        // Show the clear queue button
+        clearQueueBtn.style.display = 'inline-block';
     }
     
     // Remove file from the list
@@ -1288,6 +1325,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Disable upload button if no files
         uploadBtn.disabled = filesToUpload.length === 0;
+        
+        // Hide clear queue button if no files
+        if (filesToUpload.length === 0) {
+            clearQueueBtn.style.display = 'none';
+        }
     }
     
     // Upload files to the server
@@ -1578,6 +1620,19 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadBtn.disabled = filesToUpload.length === 0;
             selectFileBtn.disabled = false;
         }
+    }
+    
+        // Clear the UI list
+        fileList.innerHTML = '';
+        
+        // Disable upload button
+        uploadBtn.disabled = true;
+        
+        // Clear the global description
+        globalFileDescription.value = '';
+        
+        // Show message
+        showToast('Upload queue cleared', 'info');
     }
     
     // Helper Functions

@@ -24,6 +24,7 @@ class File(db.Model):
     download_count = db.Column(db.Integer, default=0)
     uploader_ip = db.Column(db.String(45), nullable=True)  # IPv6 addresses can be long
     description = db.Column(db.Text, nullable=True)
+    file_hash = db.Column(db.String(64), nullable=True, index=True)  # SHA-256 hash is 64 chars
     
     def to_dict(self):
         """
@@ -145,7 +146,7 @@ def init_default_stats():
     
     db.session.commit()
 
-def add_file(filename, original_filename, size, mime_type=None, uploader_ip=None, description=None):
+def add_file(filename, original_filename, size, mime_type=None, uploader_ip=None, description=None, file_hash=None):
     """
     Add a file record to the database
     """
@@ -155,7 +156,8 @@ def add_file(filename, original_filename, size, mime_type=None, uploader_ip=None
         size=size,
         mime_type=mime_type,
         uploader_ip=uploader_ip,
-        description=description
+        description=description,
+        file_hash=file_hash
     )
     db.session.add(file)
     db.session.commit()
@@ -179,6 +181,13 @@ def get_file_by_filename(filename):
     Get file record by filename
     """
     return File.query.filter_by(filename=filename).first()
+
+
+def get_file_by_hash(file_hash):
+    """
+    Get file record by hash
+    """
+    return File.query.filter_by(file_hash=file_hash).first()
 
 
 def increment_download_count(file_id):

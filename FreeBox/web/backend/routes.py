@@ -6,14 +6,23 @@ Contains route definitions for file uploads and downloads
 import os
 import mimetypes
 import uuid
+import hashlib
 from flask import Blueprint, request, jsonify, send_file, current_app, abort
 from werkzeug.utils import secure_filename
-from backend.database import add_file, get_file_by_id, get_file_by_filename, increment_download_count, delete_file, get_all_stats
+from backend.database import add_file, get_file_by_id, get_file_by_filename, increment_download_count, delete_file, get_all_stats, get_file_by_hash
 from backend.app import socketio
 import psutil
 
 # Create a blueprint for upload-related routes
 uploads_bp = Blueprint('uploads', __name__)
+
+def calculate_file_hash(file_path):
+    """Calculate SHA256 hash of a file"""
+    hash_sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_sha256.update(chunk)
+    return hash_sha256.hexdigest()
 
 @uploads_bp.route('/api/upload', methods=['POST'])
 def upload_file():
@@ -52,24 +61,47 @@ def upload_file():
         except Exception as e:
             return jsonify({'success': False, 'error': f'Failed to create storage directory: {str(e)}'}), 500
     
-    # Save the file to the storage directory
+    # Temporary file path to calculate hash before final storage
+    temp_file_path = os.path.join(storage_dir, f"temp_{unique_filename}")
     file_path = os.path.join(storage_dir, unique_filename)
     
     try:
-        file.save(file_path)
+        # Save to temporary location first
+        file.save(temp_file_path)
+        
+        # Calculate file hash to check for duplicates
+        file_hash = calculate_file_hash(temp_file_path)
         
         # Get file info
-        file_size = os.path.getsize(file_path)
+        file_size = os.path.getsize(temp_file_path)
         file_type = mimetypes.guess_type(original_filename)[0] or 'application/octet-stream'
         
-        # Add to database
+        # Check if file with this hash already exists
+        existing_file = get_file_by_hash(file_hash)
+        if existing_file:
+            # Remove the temporary file since it's a duplicate
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+                
+            return jsonify({
+                'success': True,
+                'file': existing_file.to_dict(),
+                'message': 'File already exists in the database',
+                'duplicate': True
+            })
+        
+        # Move from temp to final location
+        os.rename(temp_file_path, file_path)
+        
+        # Add to database with hash
         file_record = add_file(
             filename=unique_filename,
             original_filename=original_filename,
             size=file_size,
             mime_type=file_type,
             uploader_ip=request.remote_addr,
-            description=description
+            description=description,
+            file_hash=file_hash
         )
         
         # Notify all clients that a new file was uploaded
@@ -80,15 +112,24 @@ def upload_file():
         
         return jsonify({
             'success': True,
-            'file': file_record.to_dict()
+            'file': file_record.to_dict(),
+            'duplicate': False
         })
     except Exception as e:
-        # Remove the file if it was created but failed to add to database
+        # Remove any temporary files
+        if os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except:
+                pass
+                
+        # Remove the final file if it was created but failed to add to database
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
             except:
                 pass
+                
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @uploads_bp.route('/api/download/<int:file_id>', methods=['GET'])

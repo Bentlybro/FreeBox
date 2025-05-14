@@ -420,6 +420,26 @@ footer {
     cursor: not-allowed;
 }
 
+.clear-queue-btn {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    width: 100%;
+    margin-bottom: 0.5rem;
+    transition: background 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.clear-queue-btn:hover {
+    background: var(--danger-dark);
+}
+
 /* Files Table */
 .files-container {
     position: relative;
@@ -1492,4 +1512,12 @@ textarea, input[type="text"] {
     to {
         width: 0;
     }
+}
+
+/* Add styling for file count display */
+.file-count {
+    font-size: 1rem;
+    font-weight: normal;
+    color: #666;
+    margin-left: 8px;
 } 
