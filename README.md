@@ -38,10 +38,10 @@ FreeBox is an offline file sharing and communication platform inspired by Pirate
 ## Quick Start Guide
 
 1. **Clone FreeBox**
-    First lets git clone the repo
-    ```bash
-    git clone https://github.com/Bentlybro/FreeBox.git
-    ```
+   - First lets git clone the repo
+   ```bash
+   git clone https://github.com/Bentlybro/FreeBox.git
+   ```
 
 2. **Install FreeBox**:
    ```bash
@@ -55,9 +55,9 @@ FreeBox is an offline file sharing and communication platform inspired by Pirate
    ```
 
 4. **Restart the Pi**
-    ```bash
-    sudo reboot
-    ```
+   ```bash
+   sudo reboot
+   ```
 
 5. **Access FreeBox**:
    - Connect to the "FreeBox" WiFi network
