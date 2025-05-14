@@ -1,6 +1,11 @@
 #!/bin/bash
 echo "Setting up the FreeBox environment..."
 
+# Get the directory of this script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+WEB_DIR="$PARENT_DIR/web"
+
 # Update system and install necessary packages
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y python3 python3-pip python3-venv hostapd dnsmasq iptables
@@ -15,8 +20,8 @@ python3 -m venv ../venv
 source ../venv/bin/activate
 
 # Install required Python packages in the virtual environment
-echo "Installing Python dependencies..."
-pip install -r requirements.txt || { echo "Failed to install dependencies!"; exit 1; }
+echo "Installing Python dependencies from web/requirements.txt..."
+pip install -r "$WEB_DIR/requirements.txt" || { echo "Failed to install dependencies!"; exit 1; }
 deactivate
 
 # Create activation script for other scripts to use

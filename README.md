@@ -65,11 +65,15 @@ cd FreeBox/Setup
 sudo ./setup.sh
 ```
 
-3. Install the required Python packages:
+The setup script automatically:
+- Installs system dependencies
+- Creates a Python virtual environment
+- Installs all required Python packages
+- Configures network settings for the hotspot mode
 
+After installation, it's recommended to reboot your Raspberry Pi:
 ```bash
-cd ../web
-pip install -r requirements.txt
+sudo reboot
 ```
 </details>
 
