@@ -1,0 +1,12 @@
+flask
+werkzeug
+jinja2
+itsdangerous
+click
+python-dotenv
+flask-cors
+flask-sqlalchemy
+flask-socketio
+python-socketio
+eventlet
+psutil
