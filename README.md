@@ -13,6 +13,7 @@ FreeBox is an offline file sharing and communication platform inspired by Pirate
 - **Custom Renaming**: Rename files before uploading them
 - **File Descriptions**: Add descriptions to individual files or groups of files
 - **Offline Access**: Works completely offline, no internet required
+- **Auto-Switching**: Automatically switches between client and hotspot modes based on WiFi availability
 
 ## Directory Structure
 
@@ -20,6 +21,9 @@ FreeBox is an offline file sharing and communication platform inspired by Pirate
   - `setup.sh`: Initial setup script for configuring the system
   - `dev_mode.sh`: Script to enable development mode
   - `hotspot_mode.sh`: Script to enable the hotspot mode
+  - `freebox_autostart.sh`: Script that checks WiFi and starts appropriate mode
+  - `install_service.sh`: Installs the auto-switching service
+  - `freebox.service`: Systemd service file for auto-starting FreeBox
 - `web/`: Contains the web interface code
   - `backend/`: Python Flask backend code
   - `frontend/`: HTML, CSS, and JavaScript files for the UI
@@ -46,9 +50,34 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Starting the FreeBox
+### Installing as an Auto-Starting Service
 
-To start the FreeBox in hotspot mode:
+The recommended way to use FreeBox is to install it as a service that starts automatically on boot:
+
+```bash
+cd FreeBox/Setup
+sudo ./install_service.sh
+```
+
+This will:
+- Create a systemd service that starts on boot
+- Try to connect to WiFi for 60 seconds
+- If connection fails, automatically switch to hotspot mode
+- Start the web interface in the appropriate mode
+
+After installation, you can control the service with:
+```bash
+sudo systemctl start freebox    # Start the service
+sudo systemctl stop freebox     # Stop the service
+sudo systemctl restart freebox  # Restart the service
+sudo systemctl status freebox   # Check status
+```
+
+### Manual Operation
+
+#### Starting the FreeBox in Hotspot Mode
+
+To manually start the FreeBox in hotspot mode:
 
 ```bash
 cd FreeBox/Setup
@@ -57,18 +86,16 @@ sudo ./hotspot_mode.sh
 
 This will create a WiFi hotspot named "FreeBox" that users can connect to.
 
-### Starting the Web Interface
+#### Starting the Web Interface
 
-To start the web interface:
+To manually start just the web interface:
 
 ```bash
 cd FreeBox/web
 sudo python run.py
 ```
 
-Once running, users connected to the FreeBox WiFi network can access the web interface by navigating to http://192.168.1.1 in their web browser.
-
-### Switching to Development Mode
+#### Switching to Development Mode
 
 To switch back to normal mode for development:
 
@@ -76,6 +103,33 @@ To switch back to normal mode for development:
 cd FreeBox/Setup
 sudo ./dev_mode.sh
 ```
+
+**Note**: If you have the auto-switching service installed, you should stop it first:
+
+```bash
+# First stop the service
+sudo systemctl stop freebox
+
+# Then run the dev mode script
+cd FreeBox/Setup
+sudo ./dev_mode.sh
+```
+
+If you want to temporarily disable the auto-switching service from starting on boot:
+
+```bash
+sudo systemctl disable freebox
+```
+
+To re-enable it later:
+
+```bash
+sudo systemctl enable freebox
+```
+
+## Access
+
+Once running, users connected to the FreeBox WiFi network can access the web interface by navigating to http://192.168.1.1 in their web browser.
 
 ## Screenshots
 
