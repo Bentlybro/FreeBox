@@ -76,6 +76,13 @@ document.addEventListener('DOMContentLoaded', () => {
         '.mp4', '.webm', '.ogg', '.mov', '.avi', '.wmv', '.mkv', '.flv', '.m4v', '.3gp'
     ];
     
+    // Add this new array for file types that should support previews
+    const previewableFileTypes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 
+        'image/bmp', 'image/webp', 'image/svg+xml', 'image/tiff',
+        'image/x-icon', 'image/vnd.microsoft.icon'
+    ];
+    
     // Progress bar elements
     const uploadProgressContainer = document.querySelector('.upload-progress-container');
     const uploadProgressBar = document.querySelector('.upload-progress-bar');
@@ -1178,6 +1185,38 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create file item content
         const fileItemContent = document.createElement('div');
         fileItemContent.className = 'file-item-content';
+
+        // Add file preview for images
+        const fileExtension = getFileExtension(file.name).toLowerCase();
+        if (imageFileExtensions.includes(fileExtension) && previewableFileTypes.includes(file.type)) {
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'file-preview-container';
+            
+            const previewImage = document.createElement('img');
+            previewImage.className = 'file-preview-image';
+            previewImage.alt = file.name;
+            
+            // Use FileReader to create preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            previewContainer.appendChild(previewImage);
+            fileItemContent.appendChild(previewContainer);
+        } else if (imageFileExtensions.includes(fileExtension)) {
+            // Show a "no preview" message for image files that can't be previewed
+            const noPreviewContainer = document.createElement('div');
+            noPreviewContainer.className = 'file-preview-container no-preview';
+            
+            const noPreviewMessage = document.createElement('div');
+            noPreviewMessage.className = 'no-preview-message';
+            noPreviewMessage.innerHTML = '<i class="fas fa-image"></i><span>No preview available</span>';
+            
+            noPreviewContainer.appendChild(noPreviewMessage);
+            fileItemContent.appendChild(noPreviewContainer);
+        }
         
         // Create rename container
         const renameContainer = document.createElement('div');
