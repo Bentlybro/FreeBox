@@ -97,12 +97,24 @@ sudo python run.py
 
 #### Switching to Development Mode
 
-To switch back to normal mode for development:
+Development mode disables the hotspot functionality and restores normal WiFi connectivity on your Raspberry Pi. This is useful when you need to:
+- Connect your Raspberry Pi to the internet for updates
+- Work on the FreeBox code with network access
+- Return to normal WiFi operation temporarily
+
+To switch to development mode:
 
 ```bash
 cd FreeBox/Setup
 sudo ./dev_mode.sh
 ```
+
+This script will:
+1. Stop the hostapd and dnsmasq services (hotspot)
+2. Remove the static IP from the wlan0 interface
+3. Unblock WiFi if it was disabled
+4. Restart the appropriate network manager
+5. Allow your Raspberry Pi to connect to regular WiFi networks
 
 **Note**: If you have the auto-switching service installed, you should stop it first:
 
